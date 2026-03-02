@@ -27,7 +27,7 @@ components/<component_name>/
 ```
 
 ## pyproject.toml Checklist
-- `[project]`: align `name` with the folder, set `version`, `description`, `readme = "README.md"`, `requires-python = ">=3.11"`, and list direct dependencies.
+- `[project]`: align `name` with the folder, set `version`, `description`, `readme = "README.md"`, `requires-python = ">=3.13"`, and list direct dependencies.
 - `[build-system]`: keep hatchling as the backend.
 - `[tool.uv.sources]`: declare workspace dependencies when another component is required.
 
