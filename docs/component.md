@@ -38,7 +38,7 @@ Document, at minimum: component’s role, scope, factory functions (if any), and
 
 Place concrete classes here so `__init__.py` can focus on exports and dependency injection wiring.
 
-## Package Initialisation (__init__.py)
+## Package Initialisation (\_\_init\_\_.py)
 - Contract packages: define the ABC and get_* factory that raises NotImplementedError.
 - Implementation packages: import the contract, handle provider-specific authentication and configuration,
 register themselves with the contract’s DI registry on import.
