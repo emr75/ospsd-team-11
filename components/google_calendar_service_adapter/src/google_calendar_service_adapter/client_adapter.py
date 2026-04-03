@@ -4,9 +4,18 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import cast
 
+import httpx
+
 from calendar_client_api.client import CalendarClient
 from calendar_client_api.event import UNSET as API_UNSET
 from calendar_client_api.event import EventCreate, EventUpdate
+from calendar_client_api.exceptions import (
+    AuthorizationError,
+    CalendarClientError,
+    EventNotFoundError,
+    ServiceUnavailableError,
+    ValidationError,
+)
 from google_calendar_service_client.api.default import (
     create_event_events_post,
     delete_event_events_event_id_delete,
@@ -16,6 +25,7 @@ from google_calendar_service_client.api.default import (
     update_event_events_event_id_patch,
 )
 from google_calendar_service_client.client import Client
+from google_calendar_service_client.errors import UnexpectedStatus
 from google_calendar_service_client.models.attendee_request import AttendeeRequest
 from google_calendar_service_client.models.event_create_request import EventCreateRequest
 from google_calendar_service_client.models.event_envelope import EventEnvelope
@@ -27,6 +37,25 @@ from google_calendar_service_client.types import Unset as GenUnset
 from google_calendar_service_adapter.event_adapter import ServiceCalendarEvent
 
 API_UNSET_TYPE = type(API_UNSET)
+
+
+def _translate_http_error(
+    err: UnexpectedStatus | httpx.HTTPError, event_id: str | None = None
+) -> CalendarClientError:
+    """Map an HTTP error from the generated client to a domain exception."""
+    if isinstance(err, UnexpectedStatus):
+        code = err.status_code
+        if code == 404 and event_id is not None:
+            return EventNotFoundError(event_id)
+        if code in (401, 403):
+            return AuthorizationError(str(err))
+        if code == 422:
+            return ValidationError(str(err))
+        if code >= 500:
+            return ServiceUnavailableError(str(err))
+        return CalendarClientError(str(err))
+    # httpx connection / timeout errors
+    return ServiceUnavailableError(str(err))
 
 
 class ServiceCalendarClient(CalendarClient):
@@ -50,22 +79,34 @@ class ServiceCalendarClient(CalendarClient):
             description=event_create.description if event_create.description is not None else GEN_UNSET,
             location=event_create.location if event_create.location is not None else GEN_UNSET,
         )
-        response = create_event_events_post.sync(client=self._client, body=body)
+        try:
+            response = create_event_events_post.sync(client=self._client, body=body)
+        except (UnexpectedStatus, httpx.HTTPError) as err:
+            raise _translate_http_error(err) from err
         return self._unwrap_event_envelope(response)
 
     def get_event(self, event_id: str) -> ServiceCalendarEvent:
         """Get a single event by ID via the service."""
-        response = get_event_events_event_id_get.sync(event_id, client=self._client)
+        try:
+            response = get_event_events_event_id_get.sync(event_id, client=self._client)
+        except (UnexpectedStatus, httpx.HTTPError) as err:
+            raise _translate_http_error(err, event_id=event_id) from err
         return self._unwrap_event_envelope(response)
 
     def list_events(self, max_results: int = 10) -> Iterable[ServiceCalendarEvent]:
         """List calendar events via the service."""
-        response = list_events_events_get.sync(client=self._client, max_results=max_results)
+        try:
+            response = list_events_events_get.sync(client=self._client, max_results=max_results)
+        except (UnexpectedStatus, httpx.HTTPError) as err:
+            raise _translate_http_error(err) from err
         return self._unwrap_events_envelope(response)
 
     def list_events_between(self, start: datetime, end: datetime) -> Iterable[ServiceCalendarEvent]:
         """List calendar events between two datetimes via the service."""
-        response = list_events_between_events_between_get.sync(client=self._client, start=start, end=end)
+        try:
+            response = list_events_between_events_between_get.sync(client=self._client, start=start, end=end)
+        except (UnexpectedStatus, httpx.HTTPError) as err:
+            raise _translate_http_error(err) from err
         return self._unwrap_events_envelope(response)
 
     def update_event(self, event_id: str, event_patch: EventUpdate) -> ServiceCalendarEvent:
@@ -102,12 +143,18 @@ class ServiceCalendarClient(CalendarClient):
             description=description,
             location=location,
         )
-        response = update_event_events_event_id_patch.sync(event_id, client=self._client, body=body)
+        try:
+            response = update_event_events_event_id_patch.sync(event_id, client=self._client, body=body)
+        except (UnexpectedStatus, httpx.HTTPError) as err:
+            raise _translate_http_error(err, event_id=event_id) from err
         return self._unwrap_event_envelope(response)
 
     def delete_event(self, event_id: str) -> None:
         """Delete a calendar event via the service."""
-        delete_event_events_event_id_delete.sync(event_id, client=self._client)
+        try:
+            delete_event_events_event_id_delete.sync(event_id, client=self._client)
+        except (UnexpectedStatus, httpx.HTTPError) as err:
+            raise _translate_http_error(err, event_id=event_id) from err
 
     @staticmethod
     def _unwrap_event_envelope(response: object) -> ServiceCalendarEvent:

@@ -15,6 +15,21 @@ from calendar_client_api.event import (
 from calendar_client_api.event import (
     EventUpdate as EventUpdate,
 )
+from calendar_client_api.exceptions import (
+    AuthorizationError as AuthorizationError,
+)
+from calendar_client_api.exceptions import (
+    CalendarClientError as CalendarClientError,
+)
+from calendar_client_api.exceptions import (
+    EventNotFoundError as EventNotFoundError,
+)
+from calendar_client_api.exceptions import (
+    ServiceUnavailableError as ServiceUnavailableError,
+)
+from calendar_client_api.exceptions import (
+    ValidationError as ValidationError,
+)
 from calendar_client_api.registry import (
     get_client as get_client,
 )
