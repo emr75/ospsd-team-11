@@ -21,6 +21,9 @@
 ## Impacted Areas
 - [ ] `calendar_client_api`
 - [ ] `google_calendar_client_impl`
+- [ ] `google_calendar_service`
+- [ ] `google_calendar_service_api_client`
+- [ ] `google_calendar_service_adapter`
 - [ ] Documentation
 - [ ] Tests
 - [ ] Tooling / CI

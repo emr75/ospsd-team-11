@@ -162,7 +162,7 @@ def fake_get_client() -> FakeCalendarClient:
 
 class TestHealthEndpoint:
     def test_returns_ok_status(self) -> None:
-        response = client.get("/health/health")
+        response = client.get("/health")
 
         assert response.status_code == HTTP_OK
         assert response.json() == {"status": "ok"}
@@ -170,7 +170,7 @@ class TestHealthEndpoint:
 
 class TestListEventsEndpoint:
     def test_returns_serialized_events(self) -> None:
-        response = client.get("/events/events")
+        response = client.get("/events/")
 
         assert response.status_code == HTTP_OK
         assert response.json() == {
@@ -196,7 +196,7 @@ class TestListEventsEndpoint:
 
 class TestGetEventEndpoint:
     def test_returns_serialized_event(self) -> None:
-        response = client.get("/events/events/test_123")
+        response = client.get("/events/test_123")
 
         assert response.status_code == HTTP_OK
         assert response.json() == {
@@ -221,7 +221,7 @@ class TestGetEventEndpoint:
 class TestCreateEventEndpoint:
     def test_creates_and_returns_serialized_event(self) -> None:
         response = client.post(
-            "/events/events",
+            "/events/",
             json={
                 "title": "Java Exam",
                 "start_time": "2026-03-20T14:00:00+00:00",
@@ -261,7 +261,7 @@ class TestCreateEventEndpoint:
 class TestUpdateEventEndpoint:
     def test_updates_and_returns_serialized_event(self) -> None:
         response = client.patch(
-            "/events/events/test_123",
+            "/events/test_123",
             json={
                 "title": "Updated Java Midterm",
                 "location": "New 2 MetroTech Room",
@@ -290,7 +290,7 @@ class TestUpdateEventEndpoint:
 
 class TestDeleteEventEndpoint:
     def test_deletes_event(self) -> None:
-        response = client.delete("/events/events/test_123")
+        response = client.delete("/events/test_123")
 
         assert response.status_code == HTTP_OK
         assert response.json() == {"status": "deleted"}

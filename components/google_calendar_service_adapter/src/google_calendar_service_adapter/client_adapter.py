@@ -2,6 +2,7 @@
 
 from collections.abc import Iterable
 from datetime import datetime
+from typing import cast
 
 from calendar_client_api.client import CalendarClient
 from calendar_client_api.event import UNSET as API_UNSET
@@ -21,8 +22,11 @@ from google_calendar_service_client.models.event_envelope import EventEnvelope
 from google_calendar_service_client.models.event_update_request import EventUpdateRequest
 from google_calendar_service_client.models.events_envelope import EventsEnvelope
 from google_calendar_service_client.types import UNSET as GEN_UNSET
+from google_calendar_service_client.types import Unset as GenUnset
 
 from google_calendar_service_adapter.event_adapter import ServiceCalendarEvent
+
+API_UNSET_TYPE = type(API_UNSET)
 
 
 class ServiceCalendarClient(CalendarClient):
@@ -66,12 +70,37 @@ class ServiceCalendarClient(CalendarClient):
 
     def update_event(self, event_id: str, event_patch: EventUpdate) -> ServiceCalendarEvent:
         """Update a calendar event via the service."""
+        if isinstance(event_patch.title, API_UNSET_TYPE):
+            title: str | None | GenUnset = GEN_UNSET
+        else:
+            title = cast("str", event_patch.title)
+
+        if isinstance(event_patch.start_time, API_UNSET_TYPE):
+            start_time: datetime | None | GenUnset = GEN_UNSET
+        else:
+            start_time = cast("datetime", event_patch.start_time)
+
+        if isinstance(event_patch.end_time, API_UNSET_TYPE):
+            end_time: datetime | None | GenUnset = GEN_UNSET
+        else:
+            end_time = cast("datetime", event_patch.end_time)
+
+        if isinstance(event_patch.description, API_UNSET_TYPE):
+            description: str | None | GenUnset = GEN_UNSET
+        else:
+            description = cast("str | None", event_patch.description)
+
+        if isinstance(event_patch.location, API_UNSET_TYPE):
+            location: str | None | GenUnset = GEN_UNSET
+        else:
+            location = cast("str | None", event_patch.location)
+
         body = EventUpdateRequest(
-            title=event_patch.title if not isinstance(event_patch.title, type(API_UNSET)) else GEN_UNSET,
-            start_time=event_patch.start_time if not isinstance(event_patch.start_time, type(API_UNSET)) else GEN_UNSET,
-            end_time=event_patch.end_time if not isinstance(event_patch.end_time, type(API_UNSET)) else GEN_UNSET,
-            description=event_patch.description if not isinstance(event_patch.description, type(API_UNSET)) else GEN_UNSET,
-            location=event_patch.location if not isinstance(event_patch.location, type(API_UNSET)) else GEN_UNSET,
+            title=title,
+            start_time=start_time,
+            end_time=end_time,
+            description=description,
+            location=location,
         )
         response = update_event_events_event_id_patch.sync(event_id, client=self._client, body=body)
         return self._unwrap_event_envelope(response)

@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from google_calendar_service.models import StatusResponse
 
-router = APIRouter(prefix="/health", tags=["health"])
+router = APIRouter(tags=["health"])
 
 
 @router.get("/health")

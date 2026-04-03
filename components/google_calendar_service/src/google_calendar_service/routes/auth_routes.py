@@ -31,7 +31,7 @@ from google_calendar_service.settings import settings
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.get("/auth/login")
+@router.get("/login")
 async def login(previous_session_id: Annotated[UUID | FrontendError, Depends(optional_cookie)]) -> RedirectResponse:
     """Start OAuth login flow and redirect to Google consent screen."""
     if not isinstance(previous_session_id, FrontendError):
@@ -54,7 +54,7 @@ async def login(previous_session_id: Annotated[UUID | FrontendError, Depends(opt
     return response
 
 
-@router.post("/auth/logout")
+@router.post("/logout")
 async def logout(session_id: Annotated[UUID | FrontendError, Depends(optional_cookie)], response: Response) -> StatusResponse:
     """Log out by clearing OAuth token/session state and removing session cookie."""
     if not isinstance(session_id, FrontendError):
@@ -65,7 +65,7 @@ async def logout(session_id: Annotated[UUID | FrontendError, Depends(optional_co
     return StatusResponse(status="logged out")
 
 
-@router.get("/auth/callback")
+@router.get("/callback")
 async def callback(
     session_id: Annotated[UUID, Depends(cookie)],
     code: Annotated[str | None, Query()] = None,

@@ -15,6 +15,9 @@ assignees: ''
 **Component(s) Affected:**
 - [ ] `calendar_client_api` - Calendar client abstraction
 - [ ] `google_calendar_client_impl` - Google Calendar implementation
+- [ ] `google_calendar_service` - Google Calendar FastAPI service
+- [ ] `google_calendar_service_api_client` - Client for Google Calendar service API
+- [ ] `google_calendar_service_adapter` - Adapter for Google Calendar service
 - [ ] New component (specify name)
 - [ ] Testing infrastructure
 - [ ] CI/CD pipeline  

@@ -49,7 +49,7 @@ def _get_client(
 router = APIRouter(prefix="/events", tags=["events"])
 
 
-@router.get("/events")
+@router.get("/")
 def list_events(
     client: Annotated[GoogleCalendarClient, Depends(_get_client)], max_results: Annotated[int, Query(ge=1)] = 10
 ) -> EventsEnvelope:
@@ -58,21 +58,21 @@ def list_events(
     return EventsEnvelope(events=[to_event_response(event) for event in events])
 
 
-@router.get("/events/{event_id}")
+@router.get("/{event_id}")
 def get_event(client: Annotated[GoogleCalendarClient, Depends(_get_client)], event_id: str) -> EventEnvelope:
     """Get a single calendar event by ID."""
     event = client.get_event(event_id)
     return EventEnvelope(event=to_event_response(event))
 
 
-@router.post("/events")
+@router.post("/")
 def create_event(client: Annotated[GoogleCalendarClient, Depends(_get_client)], event: EventCreateRequest) -> EventEnvelope:
     """Create a calendar event."""
     created_event = client.create_event(event.to_event_create())
     return EventEnvelope(event=to_event_response(created_event))
 
 
-@router.patch("/events/{event_id}")
+@router.patch("/{event_id}")
 def update_event(
     client: Annotated[GoogleCalendarClient, Depends(_get_client)], event_id: str, event: EventUpdateRequest
 ) -> EventEnvelope:
@@ -81,7 +81,7 @@ def update_event(
     return EventEnvelope(event=to_event_response(updated_event))
 
 
-@router.delete("/events/{event_id}")
+@router.delete("/{event_id}")
 def delete_event(client: Annotated[GoogleCalendarClient, Depends(_get_client)], event_id: str) -> StatusResponse:
     """Delete a calendar event."""
     client.delete_event(event_id)

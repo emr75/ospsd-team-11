@@ -298,7 +298,7 @@ class TestAuthEndpoints:
         )
 
         try:
-            response = client.get("/auth/auth/login", follow_redirects=False)
+            response = client.get("/auth/login", follow_redirects=False)
         finally:
             app.dependency_overrides.pop(optional_cookie, None)
 
@@ -312,7 +312,7 @@ class TestAuthEndpoints:
     def test_logout_without_session_returns_logged_out(self) -> None:
         """Return 200 and logged-out status even when no session exists."""
         client.cookies.clear()
-        response = client.post("/auth/auth/logout")
+        response = client.post("/auth/logout")
 
         assert response.status_code == HTTP_OK
         assert response.json() == {"status": "logged out"}
@@ -328,16 +328,16 @@ class TestAuthEndpoints:
         monkeypatch.setattr(auth_module, "consume_oauth_handshake_from_session", fake_consume_none)
 
         try:
-            provider_error = client.get("/auth/auth/callback", params={"error": "access_denied"})
+            provider_error = client.get("/auth/callback", params={"error": "access_denied"})
             assert provider_error.status_code == HTTP_BAD_REQUEST
 
-            missing_code = client.get("/auth/auth/callback", params={"state": "state-1"})
+            missing_code = client.get("/auth/callback", params={"state": "state-1"})
             assert missing_code.status_code == HTTP_BAD_REQUEST
 
-            missing_state = client.get("/auth/auth/callback", params={"code": "code-1"})
+            missing_state = client.get("/auth/callback", params={"code": "code-1"})
             assert missing_state.status_code == HTTP_BAD_REQUEST
 
-            invalid_state = client.get("/auth/auth/callback", params={"code": "code-1", "state": "state-1"})
+            invalid_state = client.get("/auth/callback", params={"code": "code-1", "state": "state-1"})
             assert invalid_state.status_code == HTTP_BAD_REQUEST
         finally:
             app.dependency_overrides.pop(session_cookie, None)
@@ -381,7 +381,7 @@ class TestAuthEndpoints:
 
         try:
             response = client.get(
-                "/auth/auth/callback",
+                "/auth/callback",
                 params={"code": "code-1", "state": "state-1"},
             )
         finally:
