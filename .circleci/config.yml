@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build:
     docker:
-        - image: cimg/python:3.13
+      - image: cimg/python:3.13
     working_directory: ~/repo
     steps:
       - checkout
@@ -11,7 +11,7 @@ jobs:
           name: "Install UV and Add to Path"
           command: |
             # set -eo pipefail is not needed since it's CircleCI's default setting
-            curl -LsSf https://astral.sh/uv/install.sh | sh 
+            curl -LsSf https://astral.sh/uv/install.sh | sh
             echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> $BASH_ENV
             source $BASH_ENV
             uv --version
@@ -201,6 +201,20 @@ jobs:
             else
                echo "Coverage XML not found."
             fi
+  deploy:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run:
+          name: "Trigger Render Deployment"
+          command: |
+            if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+                echo "Environment variable RENDER_DEPLOY_HOOK does not exists."
+                exit 1
+            fi
+            echo "Triggering deployment to Render."
+            curl --fail -X GET "$RENDER_DEPLOY_HOOK"
+            echo "Deployment triggered successfully."
 
 workflows:
   lint_types_tests:
@@ -226,3 +240,13 @@ workflows:
             - unit_tests
             - integration_tests
             - e2e_tests
+      - deploy:
+          requires:
+            - lint
+            - types
+            - unit_tests
+            - integration_tests
+            - e2e_tests
+          filters:
+            branches:
+              only: hw-2
