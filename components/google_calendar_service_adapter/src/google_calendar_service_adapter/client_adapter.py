@@ -2,10 +2,10 @@
 
 from collections.abc import Iterable
 from datetime import datetime
+from http import HTTPStatus
 from typing import cast
 
 import httpx
-
 from calendar_client_api.client import CalendarClient
 from calendar_client_api.event import UNSET as API_UNSET
 from calendar_client_api.event import EventCreate, EventUpdate
@@ -45,13 +45,13 @@ def _translate_http_error(
     """Map an HTTP error from the generated client to a domain exception."""
     if isinstance(err, UnexpectedStatus):
         code = err.status_code
-        if code == 404 and event_id is not None:
+        if code == HTTPStatus.NOT_FOUND and event_id is not None:
             return EventNotFoundError(event_id)
-        if code in (401, 403):
+        if code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
             return AuthorizationError(str(err))
-        if code == 422:
+        if code == HTTPStatus.UNPROCESSABLE_ENTITY:
             return ValidationError(str(err))
-        if code >= 500:
+        if code >= HTTPStatus.INTERNAL_SERVER_ERROR:
             return ServiceUnavailableError(str(err))
         return CalendarClientError(str(err))
     # httpx connection / timeout errors
