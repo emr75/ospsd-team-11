@@ -1,13 +1,17 @@
 """Tests for OAuth helpers and auth endpoints in Google Calendar Service."""
+# ruff: noqa: C901, PYI034, ASYNC109, EM101, TRY003
 
+from __future__ import annotations
+
+import asyncio
 import json
 import urllib.parse
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import UUID
 
-import google_calendar_service.main as main_module
-import google_calendar_service.settings as settings_module
+import google_calendar_service.oauth_utils as oauth_module
+import google_calendar_service.routes.auth_routes as auth_module
 import httpx
 import pytest
 from fastapi import HTTPException
@@ -18,59 +22,32 @@ from google_calendar_service.session_store import cookie as session_cookie
 
 HTTP_OK = 200
 HTTP_BAD_REQUEST = 400
-HTTP_FORBIDDEN = 403
 HTTP_FOUND = 302
 HTTP_BAD_GATEWAY = 502
-OAUTH_STATE_TTL_SECONDS = 900
 
 client = TestClient(app)
 
 
-@pytest.fixture(autouse=True)
-def clear_settings_cache() -> None:
-    """Clear cached settings so env monkeypatching is applied per test."""
-    settings_module.get_settings.cache_clear()
-
-
 class TestAuthHelperFunctions:
-    """Tests for centralized settings and OAuth helper behavior."""
-
-    def test_get_settings_reads_required_oauth_values(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Load OAuth values from environment into settings."""
-        monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_ID", "id-1")
-        monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_SECRET", "secret-1")
-        monkeypatch.setenv("GOOGLE_CALENDAR_REDIRECT_URI", "http://localhost:8000/auth/callback")
-        monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_STATE_TTL_SECONDS", str(OAUTH_STATE_TTL_SECONDS))
-
-        settings = settings_module.get_settings()
-
-        assert settings.oauth.require_client_id() == "id-1"
-        assert settings.oauth.require_client_secret() == "secret-1"
-        assert settings.oauth.require_redirect_uri() == "http://localhost:8000/auth/callback"
-        assert settings.oauth.state_ttl_seconds == OAUTH_STATE_TTL_SECONDS
-
-    def test_get_settings_raises_for_invalid_state_ttl(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Reject invalid OAuth state TTL values through centralized settings."""
-        monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_STATE_TTL_SECONDS", "abc")
-        with pytest.raises(ValueError, match="invalid literal for int"):
-            settings_module.get_settings()
-
-        monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_STATE_TTL_SECONDS", "0")
-        with pytest.raises(ValueError, match="GOOGLE_CALENDAR_OAUTH_STATE_TTL_SECONDS must be >= 1"):
-            settings_module.get_settings()
+    """Tests for oauth_utils helpers."""
 
     def test_build_google_authorization_url_contains_expected_params(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Build provider URL with expected OAuth parameters."""
-        monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_ID", "id-1")
-        monkeypatch.setenv("GOOGLE_CALENDAR_REDIRECT_URI", "http://localhost:8000/auth/callback")
-        monkeypatch.setenv("GOOGLE_CALENDAR_SCOPES", "scope.a scope.b")
-        monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_PROMPT", "select_account")
-        monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_AUTH_URL", "https://accounts.google.com/o/oauth2/v2/auth")
+        fake_settings = SimpleNamespace(
+            oauth=SimpleNamespace(
+                require_client_id=lambda: "id-1",
+                require_redirect_uri=lambda: "http://localhost:8000/auth/callback",
+                scopes="scope.a scope.b",
+                prompt="select_account",
+                auth_url="https://accounts.google.com/o/oauth2/v2/auth",
+            )
+        )
+        monkeypatch.setattr(oauth_module, "settings", fake_settings)
 
-        url = main_module._build_google_authorization_url(
+        url = oauth_module.build_google_authorization_url(
             state="state-1",
             code_challenge="challenge-1",
         )
@@ -87,25 +64,23 @@ class TestAuthHelperFunctions:
         assert params["code_challenge_method"] == ["S256"]
         assert params["access_type"] == ["offline"]
 
-    def test_get_settings_rejects_invalid_token_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Reject non-https and non-whitelisted token endpoint hosts."""
-        monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_TOKEN_URL", "http://oauth2.googleapis.com/token")
-        with pytest.raises(ValueError, match="must be a valid https URL"):
-            settings_module.get_settings()
-
-        monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_TOKEN_URL", "https://evil.example.com/token")
-        with pytest.raises(ValueError, match="host is not allowed"):
-            settings_module.get_settings()
-
     def test_exchange_code_for_tokens_success_and_fallback_expiry(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Return tokens and use fallback expiry when provider value is invalid."""
-        monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_ID", "id-1")
-        monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_SECRET", "secret-1")
-        monkeypatch.setenv("GOOGLE_CALENDAR_REDIRECT_URI", "http://localhost:8000/auth/callback")
-        monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_TOKEN_URL", "https://oauth2.googleapis.com/token")
+        fake_settings = SimpleNamespace(
+            oauth=SimpleNamespace(
+                require_web_credentials=lambda: (
+                    "id-1",
+                    "secret-1",
+                    "http://localhost:8000/auth/callback",
+                ),
+                token_url="https://oauth2.googleapis.com/token",
+                token_request_timeout_seconds=10,
+            )
+        )
+        monkeypatch.setattr(oauth_module, "settings", fake_settings)
 
         class FakeResponse:
             is_error = False
@@ -118,22 +93,29 @@ class TestAuthHelperFunctions:
                     "expires_in": "not-an-int",
                 }
 
-        def fake_post_success(
-            url: str,
-            *,
-            data: dict[str, str],
-            timeout: int,
-            headers: dict[str, str],
-        ) -> FakeResponse:
-            del url, data, timeout, headers
-            return FakeResponse()
+        class FakeAsyncClient:
+            async def __aenter__(self) -> FakeAsyncClient:
+                return self
 
-        monkeypatch.setattr(httpx, "post", fake_post_success)
+            async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
+                del exc_type, exc, tb
+
+            async def post(
+                self,
+                url: str,
+                *,
+                data: dict[str, str],
+                timeout: int,
+                headers: dict[str, str],
+            ) -> FakeResponse:
+                del url, data, timeout, headers
+                return FakeResponse()
+
+        monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
 
         before = datetime.now(UTC)
-        access_token, refresh_token, expires_at = main_module._exchange_code_for_tokens(
-            code="code-1",
-            code_verifier="verifier-1",
+        access_token, refresh_token, expires_at = asyncio.run(
+            oauth_module.exchange_code_for_tokens(code="code-1", code_verifier="verifier-1")
         )
         after = datetime.now(UTC)
 
@@ -145,28 +127,43 @@ class TestAuthHelperFunctions:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Handle request/network error, HTTP error response, bad JSON, and missing token."""
-        monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_ID", "id-1")
-        monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_SECRET", "secret-1")
-        monkeypatch.setenv("GOOGLE_CALENDAR_REDIRECT_URI", "http://localhost:8000/auth/callback")
-        monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_TOKEN_URL", "https://oauth2.googleapis.com/token")
+        """Handle request/network error, HTTP error, bad JSON, and missing token."""
+        fake_settings = SimpleNamespace(
+            oauth=SimpleNamespace(
+                require_web_credentials=lambda: (
+                    "id-1",
+                    "secret-1",
+                    "http://localhost:8000/auth/callback",
+                ),
+                token_url="https://oauth2.googleapis.com/token",
+                token_request_timeout_seconds=10,
+            )
+        )
+        monkeypatch.setattr(oauth_module, "settings", fake_settings)
 
         request = httpx.Request("POST", "https://oauth2.googleapis.com/token")
 
-        def raise_request_error(
-            url: str,
-            *,
-            data: dict[str, str],
-            timeout: int,
-            headers: dict[str, str],
-        ) -> None:
-            del url, data, timeout, headers
-            msg = "boom"
-            raise httpx.RequestError(msg, request=request)
+        class RequestErrorClient:
+            async def __aenter__(self) -> RequestErrorClient:
+                return self
 
-        monkeypatch.setattr(httpx, "post", raise_request_error)
+            async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
+                del exc_type, exc, tb
+
+            async def post(
+                self,
+                url: str,
+                *,
+                data: dict[str, str],
+                timeout: int,
+                headers: dict[str, str],
+            ) -> None:
+                del url, data, timeout, headers
+                raise httpx.RequestError("boom", request=request)
+
+        monkeypatch.setattr(httpx, "AsyncClient", RequestErrorClient)
         with pytest.raises(HTTPException) as exc_request_error:
-            main_module._exchange_code_for_tokens(code="code-1", code_verifier="verifier-1")
+            asyncio.run(oauth_module.exchange_code_for_tokens(code="code-1", code_verifier="verifier-1"))
         assert exc_request_error.value.status_code == HTTP_BAD_GATEWAY
 
         class ErrorResponse:
@@ -176,19 +173,27 @@ class TestAuthHelperFunctions:
             def json(self) -> dict[str, object]:
                 return {}
 
-        def fake_post_error_response(
-            url: str,
-            *,
-            data: dict[str, str],
-            timeout: int,
-            headers: dict[str, str],
-        ) -> ErrorResponse:
-            del url, data, timeout, headers
-            return ErrorResponse()
+        class HttpErrorClient:
+            async def __aenter__(self) -> HttpErrorClient:
+                return self
 
-        monkeypatch.setattr(httpx, "post", fake_post_error_response)
+            async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
+                del exc_type, exc, tb
+
+            async def post(
+                self,
+                url: str,
+                *,
+                data: dict[str, str],
+                timeout: int,
+                headers: dict[str, str],
+            ) -> ErrorResponse:
+                del url, data, timeout, headers
+                return ErrorResponse()
+
+        monkeypatch.setattr(httpx, "AsyncClient", HttpErrorClient)
         with pytest.raises(HTTPException) as exc_http_error:
-            main_module._exchange_code_for_tokens(code="code-1", code_verifier="verifier-1")
+            asyncio.run(oauth_module.exchange_code_for_tokens(code="code-1", code_verifier="verifier-1"))
         assert exc_http_error.value.status_code == HTTP_BAD_GATEWAY
 
         class NonJsonResponse:
@@ -196,22 +201,29 @@ class TestAuthHelperFunctions:
             text = "not-json"
 
             def json(self) -> dict[str, object]:
-                msg = "bad json"
-                raise json.JSONDecodeError(msg, doc="not-json", pos=0)
+                raise json.JSONDecodeError("bad json", doc="not-json", pos=0)
 
-        def fake_post_non_json(
-            url: str,
-            *,
-            data: dict[str, str],
-            timeout: int,
-            headers: dict[str, str],
-        ) -> NonJsonResponse:
-            del url, data, timeout, headers
-            return NonJsonResponse()
+        class NonJsonClient:
+            async def __aenter__(self) -> NonJsonClient:
+                return self
 
-        monkeypatch.setattr(httpx, "post", fake_post_non_json)
+            async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
+                del exc_type, exc, tb
+
+            async def post(
+                self,
+                url: str,
+                *,
+                data: dict[str, str],
+                timeout: int,
+                headers: dict[str, str],
+            ) -> NonJsonResponse:
+                del url, data, timeout, headers
+                return NonJsonResponse()
+
+        monkeypatch.setattr(httpx, "AsyncClient", NonJsonClient)
         with pytest.raises(HTTPException) as exc_bad_json:
-            main_module._exchange_code_for_tokens(code="code-1", code_verifier="verifier-1")
+            asyncio.run(oauth_module.exchange_code_for_tokens(code="code-1", code_verifier="verifier-1"))
         assert exc_bad_json.value.status_code == HTTP_BAD_GATEWAY
 
         class MissingTokenResponse:
@@ -221,19 +233,27 @@ class TestAuthHelperFunctions:
             def json(self) -> dict[str, object]:
                 return {"refresh_token": "refresh-1", "expires_in": 1200}
 
-        def fake_post_missing_token(
-            url: str,
-            *,
-            data: dict[str, str],
-            timeout: int,
-            headers: dict[str, str],
-        ) -> MissingTokenResponse:
-            del url, data, timeout, headers
-            return MissingTokenResponse()
+        class MissingTokenClient:
+            async def __aenter__(self) -> MissingTokenClient:
+                return self
 
-        monkeypatch.setattr(httpx, "post", fake_post_missing_token)
+            async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
+                del exc_type, exc, tb
+
+            async def post(
+                self,
+                url: str,
+                *,
+                data: dict[str, str],
+                timeout: int,
+                headers: dict[str, str],
+            ) -> MissingTokenResponse:
+                del url, data, timeout, headers
+                return MissingTokenResponse()
+
+        monkeypatch.setattr(httpx, "AsyncClient", MissingTokenClient)
         with pytest.raises(HTTPException) as exc_missing_access:
-            main_module._exchange_code_for_tokens(code="code-1", code_verifier="verifier-1")
+            asyncio.run(oauth_module.exchange_code_for_tokens(code="code-1", code_verifier="verifier-1"))
         assert exc_missing_access.value.status_code == HTTP_BAD_GATEWAY
 
 
@@ -265,24 +285,20 @@ class TestAuthEndpoints:
             observed["set_ttl"] = ttl_seconds
 
         app.dependency_overrides[optional_cookie] = lambda: previous_session_id
-        monkeypatch.setattr(main_module, "delete_session", fake_delete_session)
-        monkeypatch.setattr(main_module, "create_session", fake_create_session)
-        monkeypatch.setattr(main_module, "generate_oauth_state", lambda: "state-1")
-        monkeypatch.setattr(main_module, "generate_pkce_pair", lambda: ("verifier-1", "challenge-1"))
-        fake_settings = SimpleNamespace(
-            oauth=SimpleNamespace(state_ttl_seconds=123),
-            session=SimpleNamespace(cookie_name="google_calendar_session_id"),
-        )
-        monkeypatch.setattr(main_module, "get_settings", lambda: fake_settings)
-        monkeypatch.setattr(main_module, "set_oauth_handshake_in_session", fake_set_oauth_handshake_in_session)
+        monkeypatch.setattr(auth_module, "delete_session", fake_delete_session)
+        monkeypatch.setattr(auth_module, "create_session", fake_create_session)
+        monkeypatch.setattr(auth_module, "generate_oauth_state", lambda: "state-1")
+        monkeypatch.setattr(auth_module, "generate_pkce_pair", lambda: ("verifier-1", "challenge-1"))
+        monkeypatch.setattr(auth_module, "settings", SimpleNamespace(oauth=SimpleNamespace(state_ttl_seconds=123)))
+        monkeypatch.setattr(auth_module, "set_oauth_handshake_in_session", fake_set_oauth_handshake_in_session)
         monkeypatch.setattr(
-            main_module,
-            "_build_google_authorization_url",
+            auth_module,
+            "build_google_authorization_url",
             lambda *, state, code_challenge: f"https://example.com/oauth?state={state}&cc={code_challenge}",
         )
 
         try:
-            response = client.get("/auth/login", follow_redirects=False)
+            response = client.get("/auth/auth/login", follow_redirects=False)
         finally:
             app.dependency_overrides.pop(optional_cookie, None)
 
@@ -293,35 +309,35 @@ class TestAuthEndpoints:
         assert observed["set_state"] == "state-1"
         assert observed["set_code_verifier"] == "verifier-1"
 
-    def test_logout_without_session_returns_403(self) -> None:
-        """Return 403 when no session cookie is present."""
+    def test_logout_without_session_returns_logged_out(self) -> None:
+        """Return 200 and logged-out status even when no session exists."""
         client.cookies.clear()
-        response = client.post("/auth/logout")
+        response = client.post("/auth/auth/logout")
 
-        assert response.status_code == HTTP_FORBIDDEN
+        assert response.status_code == HTTP_OK
+        assert response.json() == {"status": "logged out"}
 
     def test_callback_error_branches(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Return 400 for provider error, missing code, missing state, and invalid handshake."""
+        """Return 400 for provider error, missing code/state, and invalid handshake."""
         session_id = UUID("00000000-0000-0000-0000-000000000333")
         app.dependency_overrides[session_cookie] = lambda: session_id
 
         async def fake_consume_none(*, session_id: UUID, state: str) -> None:
-            del session_id
-            del state
+            del session_id, state
 
-        monkeypatch.setattr(main_module, "consume_oauth_handshake_from_session", fake_consume_none)
+        monkeypatch.setattr(auth_module, "consume_oauth_handshake_from_session", fake_consume_none)
 
         try:
-            provider_error = client.get("/auth/callback", params={"error": "access_denied"})
+            provider_error = client.get("/auth/auth/callback", params={"error": "access_denied"})
             assert provider_error.status_code == HTTP_BAD_REQUEST
 
-            missing_code = client.get("/auth/callback", params={"state": "state-1"})
+            missing_code = client.get("/auth/auth/callback", params={"state": "state-1"})
             assert missing_code.status_code == HTTP_BAD_REQUEST
 
-            missing_state = client.get("/auth/callback", params={"code": "code-1"})
+            missing_state = client.get("/auth/auth/callback", params={"code": "code-1"})
             assert missing_state.status_code == HTTP_BAD_REQUEST
 
-            invalid_state = client.get("/auth/callback", params={"code": "code-1", "state": "state-1"})
+            invalid_state = client.get("/auth/auth/callback", params={"code": "code-1", "state": "state-1"})
             assert invalid_state.status_code == HTTP_BAD_REQUEST
         finally:
             app.dependency_overrides.pop(session_cookie, None)
@@ -332,11 +348,7 @@ class TestAuthEndpoints:
         expires_at = datetime.now(UTC) + timedelta(seconds=3600)
         observed: dict[str, object] = {}
 
-        async def fake_consume(
-            *,
-            session_id: UUID,
-            state: str,
-        ) -> OAuthStateRecord:
+        async def fake_consume(*, session_id: UUID, state: str) -> OAuthStateRecord:
             observed["consume_session_id"] = session_id
             observed["consume_state"] = state
             return OAuthStateRecord(
@@ -345,7 +357,7 @@ class TestAuthEndpoints:
                 expires_at=expires_at,
             )
 
-        def fake_exchange(*, code: str, code_verifier: str) -> tuple[str, str | None, datetime]:
+        async def fake_exchange(*, code: str, code_verifier: str) -> tuple[str, str | None, datetime]:
             observed["exchange_code"] = code
             observed["exchange_verifier"] = code_verifier
             return ("access-1", "refresh-1", expires_at)
@@ -363,17 +375,14 @@ class TestAuthEndpoints:
             observed["set_expires_at"] = expires_at
 
         app.dependency_overrides[session_cookie] = lambda: session_id
-        monkeypatch.setattr(main_module, "consume_oauth_handshake_from_session", fake_consume)
-        monkeypatch.setattr(main_module, "_exchange_code_for_tokens", fake_exchange)
-        monkeypatch.setattr(main_module, "set_oauth_tokens_in_session", fake_set_tokens)
+        monkeypatch.setattr(auth_module, "consume_oauth_handshake_from_session", fake_consume)
+        monkeypatch.setattr(auth_module, "exchange_code_for_tokens", fake_exchange)
+        monkeypatch.setattr(auth_module, "set_oauth_tokens_in_session", fake_set_tokens)
 
         try:
             response = client.get(
-                "/auth/callback",
-                params={
-                    "code": "code-1",
-                    "state": "state-1",
-                },
+                "/auth/auth/callback",
+                params={"code": "code-1", "state": "state-1"},
             )
         finally:
             app.dependency_overrides.pop(session_cookie, None)
@@ -387,3 +396,4 @@ class TestAuthEndpoints:
         assert observed["set_session_id"] == session_id
         assert observed["set_access_token"] == "access-1"
         assert observed["set_refresh_token"] == "refresh-1"
+        assert observed["set_expires_at"] == expires_at

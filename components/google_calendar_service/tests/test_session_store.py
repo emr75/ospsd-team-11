@@ -9,14 +9,13 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from google_calendar_service.oauth_utils import generate_oauth_state, generate_pkce_pair
 from google_calendar_service.session_store import (
     SessionData,
     clear_oauth_tokens_in_session,
     consume_oauth_handshake_from_session,
     create_session,
     delete_session,
-    generate_oauth_state,
-    generate_pkce_pair,
     get_oauth_tokens_from_session,
     read_session,
     set_oauth_handshake_in_session,

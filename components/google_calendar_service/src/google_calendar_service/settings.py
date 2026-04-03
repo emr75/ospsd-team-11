@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Final
 from urllib.parse import urlparse
 
@@ -135,7 +134,6 @@ def _validate_token_endpoint(token_url: str, allowed_hosts: tuple[str, ...]) -> 
         raise ValueError(msg)
 
 
-@lru_cache(maxsize=1)
 def get_settings() -> ServiceSettings:
     """Load service settings from environment variables."""
     load_env()
@@ -178,3 +176,6 @@ def get_settings() -> ServiceSettings:
         oauth=oauth,
         session=session,
     )
+
+
+settings = get_settings()

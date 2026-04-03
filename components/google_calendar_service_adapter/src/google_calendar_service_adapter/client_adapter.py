@@ -35,8 +35,7 @@ class ServiceCalendarClient(CalendarClient):
     def create_event(self, event_create: EventCreate) -> ServiceCalendarEvent:
         """Create a calendar event via the service."""
         attendees = [
-            AttendeeRequest(email=a.email, name=a.name if a.name is not None else GEN_UNSET)
-            for a in event_create.attendees
+            AttendeeRequest(email=a.email, name=a.name if a.name is not None else GEN_UNSET) for a in event_create.attendees
         ]
         body = EventCreateRequest(
             title=event_create.title,

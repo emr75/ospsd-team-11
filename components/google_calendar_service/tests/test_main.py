@@ -1,14 +1,15 @@
+# ruff: noqa: D101, D102, D103, D107
 """Tests for the Google Calendar FastAPI service."""
 
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-import google_calendar_service.main as main_module
 import pytest
 from calendar_client_api.event import Attendee, Event, EventCreate, EventUpdate
 from fastapi.testclient import TestClient
 from google_calendar_service.main import app
+from google_calendar_service.routes import event_routes
 
 HTTP_OK = 200
 DEFAULT_MAX_RESULTS = 10
@@ -18,10 +19,10 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def override_get_client_dependency() -> Iterator[None]:
-    """Override the FastAPI get_client dependency with the fake client for these tests."""
-    app.dependency_overrides[main_module.get_client] = fake_get_client
+    """Override the events router _get_client dependency with a fake client."""
+    app.dependency_overrides[event_routes._get_client] = fake_get_client
     yield
-    app.dependency_overrides.pop(main_module.get_client, None)
+    app.dependency_overrides.pop(event_routes._get_client, None)
 
 
 @dataclass(frozen=True)
@@ -42,47 +43,38 @@ class FakeEvent(Event):
     """Fake event used for service tests."""
 
     def __init__(self, data: FakeEventData) -> None:
-        """Initialize a fake event from test data."""
         self._data = data
 
     @property
     def id(self) -> str:
-        """Return the event ID."""
         return self._data.event_id
 
     @property
     def title(self) -> str:
-        """Return the event title."""
         return self._data.title
 
     @property
     def start_time(self) -> datetime:
-        """Return the start time."""
         return self._data.start_time
 
     @property
     def end_time(self) -> datetime:
-        """Return the end time."""
         return self._data.end_time
 
     @property
     def description(self) -> str | None:
-        """Return the description."""
         return self._data.description
 
     @property
     def location(self) -> str | None:
-        """Return the location."""
         return self._data.location
 
     @property
     def attendees(self) -> list[Attendee]:
-        """Return the attendees."""
         return self._data.attendees or []
 
     @property
     def attachments(self) -> list[str]:
-        """Return the attachments."""
         return self._data.attachments or []
 
 
@@ -90,7 +82,6 @@ class FakeCalendarClient:
     """Fake calendar client used for service tests."""
 
     def list_events(self, max_results: int = DEFAULT_MAX_RESULTS) -> Iterable[Event]:
-        """Return fake events."""
         assert max_results == DEFAULT_MAX_RESULTS
         return [
             FakeEvent(
@@ -108,7 +99,6 @@ class FakeCalendarClient:
         ]
 
     def get_event(self, event_id: str) -> Event:
-        """Return one fake event by ID."""
         assert event_id == "test_123"
         return FakeEvent(
             FakeEventData(
@@ -124,7 +114,6 @@ class FakeCalendarClient:
         )
 
     def create_event(self, event_create: EventCreate) -> Event:
-        """Return a created fake event."""
         assert event_create.title == "Java Exam"
         assert event_create.description == "Java Midterm"
         assert event_create.location == "2 MetroTech"
@@ -146,7 +135,6 @@ class FakeCalendarClient:
         )
 
     def update_event(self, event_id: str, event_update: EventUpdate) -> Event:
-        """Return an updated fake event."""
         assert event_id == "test_123"
         assert event_update.title == "Updated Java Midterm"
         assert event_update.location == "New 2 MetroTech Room"
@@ -165,32 +153,24 @@ class FakeCalendarClient:
         )
 
     def delete_event(self, event_id: str) -> None:
-        """Delete a fake event."""
         assert event_id == "test_123"
 
 
 def fake_get_client() -> FakeCalendarClient:
-    """Return a fake calendar client."""
     return FakeCalendarClient()
 
 
 class TestHealthEndpoint:
-    """Tests for the health endpoint."""
-
     def test_returns_ok_status(self) -> None:
-        """Return a successful health response."""
-        response = client.get("/health")
+        response = client.get("/health/health")
 
         assert response.status_code == HTTP_OK
         assert response.json() == {"status": "ok"}
 
 
 class TestListEventsEndpoint:
-    """Tests for the list events endpoint."""
-
-    def test_returns_serialized_events(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Return serialized event data from the client."""
-        response = client.get("/events")
+    def test_returns_serialized_events(self) -> None:
+        response = client.get("/events/events")
 
         assert response.status_code == HTTP_OK
         assert response.json() == {
@@ -215,11 +195,8 @@ class TestListEventsEndpoint:
 
 
 class TestGetEventEndpoint:
-    """Tests for the get event endpoint."""
-
-    def test_returns_serialized_event(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Return one serialized event by ID."""
-        response = client.get("/events/test_123")
+    def test_returns_serialized_event(self) -> None:
+        response = client.get("/events/events/test_123")
 
         assert response.status_code == HTTP_OK
         assert response.json() == {
@@ -242,12 +219,9 @@ class TestGetEventEndpoint:
 
 
 class TestCreateEventEndpoint:
-    """Tests for the create event endpoint."""
-
-    def test_creates_and_returns_serialized_event(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Create an event and return serialized event data."""
+    def test_creates_and_returns_serialized_event(self) -> None:
         response = client.post(
-            "/events",
+            "/events/events",
             json={
                 "title": "Java Exam",
                 "start_time": "2026-03-20T14:00:00+00:00",
@@ -285,12 +259,9 @@ class TestCreateEventEndpoint:
 
 
 class TestUpdateEventEndpoint:
-    """Tests for the update event endpoint."""
-
-    def test_updates_and_returns_serialized_event(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Update an event and return serialized event data."""
+    def test_updates_and_returns_serialized_event(self) -> None:
         response = client.patch(
-            "/events/test_123",
+            "/events/events/test_123",
             json={
                 "title": "Updated Java Midterm",
                 "location": "New 2 MetroTech Room",
@@ -318,11 +289,8 @@ class TestUpdateEventEndpoint:
 
 
 class TestDeleteEventEndpoint:
-    """Tests for the delete event endpoint."""
-
-    def test_deletes_event(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Delete an event and return confirmation."""
-        response = client.delete("/events/test_123")
+    def test_deletes_event(self) -> None:
+        response = client.delete("/events/events/test_123")
 
         assert response.status_code == HTTP_OK
         assert response.json() == {"status": "deleted"}

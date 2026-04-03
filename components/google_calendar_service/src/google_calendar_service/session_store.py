@@ -3,16 +3,12 @@
 This module centralizes:
 - Session cookie/frontend configuration
 - In-memory session backend and verifier
-- OAuth state + PKCE handshake helpers
 - OAuth token helpers stored in session data
 """
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import logging
-import secrets
 from datetime import UTC, datetime, timedelta
 from typing import cast
 from uuid import UUID, uuid4
@@ -26,7 +22,7 @@ from fastapi_sessions.frontends.implementations import (  # type: ignore[import-
 from fastapi_sessions.session_verifier import SessionVerifier  # type: ignore[import-untyped]
 from pydantic import BaseModel, ConfigDict
 
-from google_calendar_service.settings import get_settings
+from google_calendar_service.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -151,40 +147,21 @@ class SessionData(BaseModel):
         )
 
 
-def generate_oauth_state(num_bytes: int = 32) -> str:
-    """Generate a cryptographically random OAuth state token."""
-    return secrets.token_urlsafe(num_bytes)
+def _make_session_cookie(*, auto_error: bool) -> SessionCookie:
+    return SessionCookie(
+        cookie_name=settings.session.cookie_name,
+        identifier=settings.session.identifier,
+        auto_error=auto_error,
+        secret_key=settings.session.secret,
+        cookie_params=CookieParameters(
+            secure=settings.session.cookie_secure,
+            httponly=settings.session.cookie_secure,
+        ),
+    )
 
 
-def generate_pkce_pair(verifier_bytes: int = 64) -> tuple[str, str]:
-    """Generate PKCE `(code_verifier, code_challenge)` pair using S256."""
-    code_verifier = secrets.token_urlsafe(verifier_bytes)
-    digest = hashlib.sha256(code_verifier.encode("utf-8")).digest()
-    code_challenge = base64.urlsafe_b64encode(digest).decode("utf-8").rstrip("=")
-    return code_verifier, code_challenge
-
-
-_service_settings = get_settings()
-cookie = SessionCookie(
-    cookie_name=_service_settings.session.cookie_name,
-    identifier=_service_settings.session.identifier,
-    auto_error=True,
-    secret_key=_service_settings.session.secret,
-    cookie_params=CookieParameters(
-        secure=_service_settings.session.cookie_secure,
-        httponly=_service_settings.session.cookie_secure,
-    ),
-)
-optional_cookie = SessionCookie(
-    cookie_name=_service_settings.session.cookie_name,
-    identifier=_service_settings.session.identifier,
-    auto_error=False,
-    secret_key=_service_settings.session.secret,
-    cookie_params=CookieParameters(
-        secure=_service_settings.session.cookie_secure,
-        httponly=_service_settings.session.cookie_secure,
-    ),
-)
+cookie = _make_session_cookie(auto_error=True)
+optional_cookie = _make_session_cookie(auto_error=False)
 
 backend = InMemoryBackend[UUID, SessionData]()
 
@@ -232,7 +209,7 @@ class BasicSessionVerifier(SessionVerifier[UUID, SessionData]):  # type: ignore[
 
 
 verifier = BasicSessionVerifier(
-    identifier=_service_settings.session.identifier,
+    identifier=settings.session.identifier,
     auto_error=True,
     backend=backend,
     auth_http_exception=HTTPException(status_code=403, detail="invalid session"),
