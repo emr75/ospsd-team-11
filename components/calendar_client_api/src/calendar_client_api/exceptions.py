@@ -9,6 +9,7 @@ class EventNotFoundError(CalendarClientError):
     """Raised when a requested event does not exist."""
 
     def __init__(self, event_id: str) -> None:
+        """Initialize with the missing event ID."""
         self.event_id = event_id
         super().__init__(f"Event not found: {event_id}")
 
