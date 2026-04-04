@@ -7,6 +7,7 @@ from google_calendar_service_adapter.event_adapter import ServiceCalendarEvent
 from google_calendar_service_client.models.attendee_response import AttendeeResponse
 from google_calendar_service_client.models.event_response import EventResponse
 from google_calendar_service_client.types import UNSET as GEN_UNSET
+from google_calendar_service_client.types import Unset
 
 _SAMPLE_START = datetime(2026, 6, 1, 10, 0, tzinfo=UTC)
 _SAMPLE_END = datetime(2026, 6, 1, 11, 0, tzinfo=UTC)
@@ -16,8 +17,8 @@ def _make_response(  # noqa: PLR0913
     *,
     event_id: str = "evt_1",
     title: str = "Standup",
-    description: str | None | object = GEN_UNSET,
-    location: str | None | object = GEN_UNSET,
+    description: str | None | Unset = GEN_UNSET,
+    location: str | None | Unset = GEN_UNSET,
     attendees: list[AttendeeResponse] | None = None,
     attachments: list[str] | None = None,
 ) -> EventResponse:

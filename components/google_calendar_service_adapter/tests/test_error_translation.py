@@ -101,7 +101,7 @@ class TestTranslateHttpError:
 
     def test_all_domain_exceptions_inherit_from_calendar_client_error(self) -> None:
         """Every translated exception should be a subclass of CalendarClientError."""
-        cases = [
+        cases: list[UnexpectedStatus | httpx.HTTPError] = [
             UnexpectedStatus(status_code=404, content=b""),
             UnexpectedStatus(status_code=401, content=b""),
             UnexpectedStatus(status_code=422, content=b""),

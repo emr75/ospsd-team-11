@@ -122,7 +122,7 @@ markers = [
 #    "components/calendar_client_api/src",
 #    "components/google_calendar_client_impl/src"
 #]
-omit = ["*/tests/*", "*/__main__.py"]
+omit = ["*/tests/*", "*/__main__.py", "components/google_calendar_service_api_client/*"]
 
 [tool.coverage.report]
 fail_under = 85 # Justification: A high threshold ensures most code is tested.
