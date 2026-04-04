@@ -28,6 +28,9 @@ nav:
       - "Calendar Client API": "api/calendar_client_api.md"
       - "Google Calendar Client Implementation": "api/google_calendar_client_impl.md"
       - "Google Calendar Events Implementation": "api/google_calendar_event_impl.md"
+      - "Google Calendar FastAPI Service": "api/google_calendar_service.md"
+      - "Google Calendar OpenAPI Client": "api/google_calendar_api_client.md"
+      - "Google Calendar Service Adapter": "api/google_calendar_service_adapter.md"
 
 markdown_extensions:
   - pymdownx.highlight:
