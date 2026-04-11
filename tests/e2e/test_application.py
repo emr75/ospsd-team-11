@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from calendar_client_api import (
+    AuthorizationError,
     CalendarClient,
     EventCreate,
     EventUpdate,
@@ -91,7 +92,19 @@ def service_adapter_client() -> Iterator[CalendarClient]:
 
     _ClientRegistry.clear()
     register_service_calendar_client()
-    yield get_client()
+    client = get_client()
+
+    try:
+        list(client.list_upcoming_events(max_results=1))
+    except AuthorizationError:
+        _ClientRegistry.clear()
+        pytest.skip(
+            "CALENDAR_COOKIE_VALUE is set but not authorized. "
+            "Refresh your OAuth session cookie by logging in again and updating "
+            "CALENDAR_COOKIE_VALUE in .env."
+        )
+
+    yield client
     _ClientRegistry.clear()
 
 
@@ -106,7 +119,7 @@ def service_adapter_client() -> Iterator[CalendarClient]:
 def _consumer_flow(client: CalendarClient, *, title_prefix: str) -> None:
     """Exercise the full CRUD lifecycle using only the CalendarClient interface."""
     # Create
-    created = client.create_event(
+    created = client.create_event_from_dto(
         EventCreate(
             title=f"{title_prefix} created",
             start_time=_NOW,
@@ -121,7 +134,7 @@ def _consumer_flow(client: CalendarClient, *, title_prefix: str) -> None:
     assert title_prefix in created.title
 
     # Read
-    fetched = client.get_event(created.id)
+    fetched = client.get_event_by_id(created.id)
     assert fetched.id == created.id
     assert fetched.title == created.title
 
@@ -132,7 +145,7 @@ def _consumer_flow(client: CalendarClient, *, title_prefix: str) -> None:
     assert any(event.id == created.id for event in events)
 
     # Update
-    updated = client.update_event(
+    updated = client.update_event_from_patch(
         created.id,
         EventUpdate(
             title=f"{title_prefix} updated",

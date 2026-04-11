@@ -76,7 +76,7 @@ class TestCreateEvent:
             description="Review the design",
             location="Room 5",
         )
-        result = client.create_event(event_create)
+        result = client.create_event_from_dto(event_create)
 
         assert isinstance(result, ServiceCalendarEvent)
         assert result.title == "Design Review"
@@ -102,7 +102,7 @@ class TestCreateEvent:
             attendees=[],
             attachments=[],
         )
-        client.create_event(event_create)
+        client.create_event_from_dto(event_create)
 
         body = mock_post.sync.call_args.kwargs["body"]
         assert body.description is GEN_UNSET
@@ -115,7 +115,7 @@ class TestCreateEvent:
 
         client = ServiceCalendarClient()
         with pytest.raises(AuthorizationError):
-            client.create_event(
+            client.create_event_from_dto(
                 EventCreate(title="X", start_time=_SAMPLE_START, end_time=_SAMPLE_END, attendees=[], attachments=[])
             )
 
@@ -129,7 +129,7 @@ class TestGetEvent:
         mock_get.sync.return_value = _event_envelope(event_id="evt_42", title="1:1")
 
         client = ServiceCalendarClient()
-        result = client.get_event("evt_42")
+        result = client.get_event_by_id("evt_42")
 
         assert isinstance(result, ServiceCalendarEvent)
         assert result.id == "evt_42"
@@ -142,7 +142,7 @@ class TestGetEvent:
 
         client = ServiceCalendarClient()
         with pytest.raises(EventNotFoundError, match="evt_missing") as exc_info:
-            client.get_event("evt_missing")
+            client.get_event_by_id("evt_missing")
 
         assert exc_info.value.event_id == "evt_missing"
 
@@ -153,7 +153,7 @@ class TestGetEvent:
 
         client = ServiceCalendarClient()
         with pytest.raises(ServiceUnavailableError):
-            client.get_event("evt_1")
+            client.get_event_by_id("evt_1")
 
 
 class TestListEvents:
@@ -165,7 +165,7 @@ class TestListEvents:
         mock_list.sync.return_value = _events_envelope(count=3)
 
         client = ServiceCalendarClient()
-        result = list(client.list_events(max_results=3))
+        result = list(client.list_upcoming_events(max_results=3))
 
         expected_count = 3
         assert len(result) == expected_count
@@ -200,7 +200,7 @@ class TestUpdateEvent:
 
         client = ServiceCalendarClient()
         patch_data = EventUpdate(title="New Title")
-        client.update_event("evt_1", patch_data)
+        client.update_event_from_patch("evt_1", patch_data)
 
         body = mock_patch.sync.call_args.kwargs["body"]
         assert body.title == "New Title"
@@ -216,7 +216,7 @@ class TestUpdateEvent:
 
         client = ServiceCalendarClient()
         patch_data = EventUpdate(description=None)
-        client.update_event("evt_1", patch_data)
+        client.update_event_from_patch("evt_1", patch_data)
 
         body = mock_patch.sync.call_args.kwargs["body"]
         assert body.description is None
@@ -228,7 +228,7 @@ class TestUpdateEvent:
 
         client = ServiceCalendarClient()
         with pytest.raises(EventNotFoundError, match="evt_gone"):
-            client.update_event("evt_gone", EventUpdate(title="X"))
+            client.update_event_from_patch("evt_gone", EventUpdate(title="X"))
 
 
 class TestDeleteEvent:

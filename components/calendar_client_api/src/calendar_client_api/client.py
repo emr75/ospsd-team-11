@@ -11,17 +11,17 @@ class CalendarClient(ABC):
     """Abstract class defines the contract/methods for any calendar client."""
 
     @abstractmethod
-    def create_event(self, event_create: EventCreate) -> Event:
+    def create_event_from_dto(self, event_create: EventCreate) -> Event:
         """Create Calendar event."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_event(self, event_id: str) -> Event:
+    def get_event_by_id(self, event_id: str) -> Event:
         """Return an event and its details based on ID."""
         raise NotImplementedError
 
     @abstractmethod
-    def list_events(self, max_results: int = 10) -> Iterable[Event]:
+    def list_upcoming_events(self, max_results: int = 10) -> Iterable[Event]:
         """List calendar events and their details."""
         raise NotImplementedError
 
@@ -31,7 +31,7 @@ class CalendarClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update_event(self, event_id: str, event_patch: EventUpdate) -> Event:
+    def update_event_from_patch(self, event_id: str, event_patch: EventUpdate) -> Event:
         """Update a calendar event."""
         raise NotImplementedError
 

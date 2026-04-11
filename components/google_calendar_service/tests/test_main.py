@@ -81,7 +81,7 @@ class FakeEvent(Event):
 class FakeCalendarClient:
     """Fake calendar client used for service tests."""
 
-    def list_events(self, max_results: int = DEFAULT_MAX_RESULTS) -> Iterable[Event]:
+    def list_upcoming_events(self, max_results: int = DEFAULT_MAX_RESULTS) -> Iterable[Event]:
         assert max_results == DEFAULT_MAX_RESULTS
         return [
             FakeEvent(
@@ -98,7 +98,7 @@ class FakeCalendarClient:
             ),
         ]
 
-    def get_event(self, event_id: str) -> Event:
+    def get_event_by_id(self, event_id: str) -> Event:
         assert event_id == "test_123"
         return FakeEvent(
             FakeEventData(
@@ -113,7 +113,7 @@ class FakeCalendarClient:
             )
         )
 
-    def create_event(self, event_create: EventCreate) -> Event:
+    def create_event_from_dto(self, event_create: EventCreate) -> Event:
         assert event_create.title == "Java Exam"
         assert event_create.description == "Java Midterm"
         assert event_create.location == "2 MetroTech"
@@ -134,10 +134,10 @@ class FakeCalendarClient:
             )
         )
 
-    def update_event(self, event_id: str, event_update: EventUpdate) -> Event:
+    def update_event_from_patch(self, event_id: str, event_patch: EventUpdate) -> Event:
         assert event_id == "test_123"
-        assert event_update.title == "Updated Java Midterm"
-        assert event_update.location == "New 2 MetroTech Room"
+        assert event_patch.title == "Updated Java Midterm"
+        assert event_patch.location == "New 2 MetroTech Room"
 
         return FakeEvent(
             FakeEventData(

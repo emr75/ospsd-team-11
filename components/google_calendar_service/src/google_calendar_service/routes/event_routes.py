@@ -55,7 +55,7 @@ def list_events(
     client: Annotated[CalendarClient, Depends(_get_client)], max_results: Annotated[int, Query(ge=1)] = 10
 ) -> EventsEnvelope:
     """List calendar events."""
-    events = client.list_events(max_results=max_results)
+    events = client.list_upcoming_events(max_results=max_results)
     return EventsEnvelope(events=[to_event_response(event) for event in events])
 
 
@@ -73,14 +73,14 @@ def list_events_between(
 @router.get("/{event_id}")
 def get_event(client: Annotated[CalendarClient, Depends(_get_client)], event_id: str) -> EventEnvelope:
     """Get a single calendar event by ID."""
-    event = client.get_event(event_id)
+    event = client.get_event_by_id(event_id)
     return EventEnvelope(event=to_event_response(event))
 
 
 @router.post("/")
 def create_event(client: Annotated[CalendarClient, Depends(_get_client)], event: EventCreateRequest) -> EventEnvelope:
     """Create a calendar event."""
-    created_event = client.create_event(event.to_event_create())
+    created_event = client.create_event_from_dto(event.to_event_create())
     return EventEnvelope(event=to_event_response(created_event))
 
 
@@ -89,7 +89,7 @@ def update_event(
     client: Annotated[CalendarClient, Depends(_get_client)], event_id: str, event: EventUpdateRequest
 ) -> EventEnvelope:
     """Update a calendar event."""
-    updated_event = client.update_event(event_id, event.to_event_update())
+    updated_event = client.update_event_from_patch(event_id, event.to_event_update())
     return EventEnvelope(event=to_event_response(updated_event))
 
 

@@ -173,7 +173,7 @@ import google_calendar_client_impl
 from calendar_client_api import get_client, EventCreate
 
 client = get_client()  # returns GoogleCalendarClient
-event = client.create_event(EventCreate(title="Meeting", ...))
+event = client.create_event_from_dto(EventCreate(title="Meeting", ...))
 print(event.title)  # "Meeting"
 ```
 
@@ -183,7 +183,7 @@ import google_calendar_service_adapter
 from calendar_client_api import get_client, EventCreate
 
 client = get_client()  # returns ServiceCalendarClient (adapter)
-event = client.create_event(EventCreate(title="Meeting", ...))
+event = client.create_event_from_dto(EventCreate(title="Meeting", ...))
 print(event.title)  # "Meeting" — same interface, same result
 ```
 
