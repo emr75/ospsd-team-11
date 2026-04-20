@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi>=0.135.1",
+    "pydantic>=2.12.5",
+    "uvicorn[standard]>=0.42.0",
+]
 
 [tool.uv.sources]
 calendar-client-api = { workspace = true }
@@ -12,7 +16,8 @@ google-calendar-client-impl = { workspace = true }
 google-calendar-service = { workspace = true }
 google-calendar-service-client = { workspace = true }
 google-calendar-service-adapter = { workspace = true }
-
+ai-client-api = { workspace = true }
+openai-ai-client-impl = { workspace = true }
 
 [project.optional-dependencies]
 dev = [
@@ -30,11 +35,13 @@ dev = [
 
 [tool.uv.workspace]
 members = [
+    "components/ai_client_api",
     "components/calendar_client_api",
     "components/google_calendar_client_impl",
     "components/google_calendar_service",
     "components/google_calendar_service_api_client",
     "components/google_calendar_service_adapter",
+    "components/openai_ai_client_impl",
 ]
 
 [tool.ruff]
@@ -71,10 +78,12 @@ ignore = [
 strict = true
 explicit_package_bases = true # Required for src layout
 mypy_path = [
+    "components/ai_client_api/src",
     "components/calendar_client_api/src",
     "components/google_calendar_client_impl/src",
     "components/google_calendar_service/src",
     "components/google_calendar_service_adapter/src",
+    "components/openai_ai_client_impl/src",
 ]
 ignore_missing_imports = false
 warn_unused_ignores = false
@@ -93,17 +102,21 @@ exclude = [
 [tool.pytest.ini_options]
 #pythonpath = [ # should rely on uv to manage dependencies instead of pythonpath tricks
 #    ".",
+#    "components/ai_client_api/src",
 #    "components/calendar_client_api/src",
 #    "components/google_calendar_client_impl/src",
 #    "components/google_calendar_service/src",
+#    "components/openai_ai_client_impl/src",
 #]
 
 testpaths = [
     "tests",
+    "components/ai_client_api/tests",
     "components/calendar_client_api/tests",
     "components/google_calendar_client_impl/tests",
     "components/google_calendar_service/tests",
-    "components/google_calendar_service_adapter/tests"
+    "components/google_calendar_service_adapter/tests",
+    "components/openai_ai_client_impl/tests"
 ]
 addopts = [
     "--cov-report=term-missing",
@@ -119,8 +132,10 @@ markers = [
 
 [tool.coverage.run]
 #source = [ # removing this enables us to specify coverage in command line
+#    "components/ai_client_api/src",
 #    "components/calendar_client_api/src",
 #    "components/google_calendar_client_impl/src"
+#    "components/openai_ai_client_impl/src",
 #]
 omit = ["*/tests/*", "*/__main__.py", "components/google_calendar_service_api_client/*"]
 

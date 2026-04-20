@@ -1,7 +1,7 @@
 [project]
 name = "google-calendar-client-impl"
 version = "0.1.0"
-description = "Add your description here"
+description = "Implementation of the calendar client interface using Google Calendar API, supporting event lifecycle operations and integration within a modular, dependency-injected service architecture."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

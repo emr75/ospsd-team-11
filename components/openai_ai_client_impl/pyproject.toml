@@ -1,0 +1,23 @@
+[project]
+name = "openai-ai-client-impl"
+version = "0.1.0"
+description = "OpenAI implementation of the AI client"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ai-client-api",
+    "openai",
+]
+
+[tool.uv.sources]
+ai-client-api = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openai_ai_client_impl"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/openai_ai_client_impl/py.typed" = "openai_ai_client_impl/py.typed"
