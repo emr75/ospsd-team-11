@@ -1,9 +1,9 @@
 # ruff: noqa: D100, D103
 
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 
 import ai_client_api.registry as registry_module
-from ai_client_api import get_client
 from ai_client_api.client import AiResponse
 from openai_ai_client_impl.client_impl import (
     OpenAiClient,
@@ -12,6 +12,9 @@ from openai_ai_client_impl.client_impl import (
     _parse_response,
     register_openai_client,
 )
+
+if TYPE_CHECKING:
+    from openai import OpenAI
 
 
 def test_build_user_prompt_without_context_returns_prompt_only() -> None:
@@ -133,7 +136,7 @@ def test_send_message_calls_openai_and_returns_parsed_response() -> None:
 
     class FakeResponses:
         def __init__(self) -> None:
-            self.called_with = None
+            self.called_with: dict[str, object] | None = None
 
         def create(self, **kwargs: object) -> object:
             self.called_with = kwargs
@@ -144,7 +147,7 @@ def test_send_message_calls_openai_and_returns_parsed_response() -> None:
             self.responses = FakeResponses()
 
     fake_client = FakeOpenAIClient()
-    client = OpenAiClient(client=fake_client, model="gpt-test")
+    client = OpenAiClient(client=cast("OpenAI", fake_client), model="gpt-test")
 
     result = client.send_message(
         prompt="Schedule a meeting tomorrow",

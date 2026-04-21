@@ -1,7 +1,7 @@
 """AI routes for handling assistant interactions."""
 
 from collections.abc import Mapping
-from typing import Protocol
+from typing import Protocol, cast
 
 from ai_client_api import get_client as get_ai_client
 from calendar_client_api import get_client as get_calendar_client
@@ -14,7 +14,10 @@ class CalendarClientProtocol(Protocol):
 
     def list_events(self, **kwargs: object) -> list[object]:
         """Return calendar events."""
-
+    def create_event(self, **kwargs: object) -> object:
+        """Create calendar event."""
+    def update_event(self, **kwargs: object) -> object:
+        """Update calendar event."""
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -37,7 +40,7 @@ class AiResponseModel(BaseModel):
 def handle_ai(request: AiRequest) -> AiResponseModel:
     """Handle an AI prompt and execute the first requested tool call."""
     ai_client = get_ai_client()
-    calendar_client = get_calendar_client()
+    calendar_client = cast("CalendarClientProtocol", get_calendar_client())
 
     ai_response = ai_client.send_message(
         prompt=request.prompt,

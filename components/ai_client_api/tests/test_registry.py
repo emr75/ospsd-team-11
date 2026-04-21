@@ -1,5 +1,6 @@
 # ruff: noqa: D100, D103
 
+from collections.abc import Generator
 from unittest.mock import Mock
 
 import ai_client_api.registry as registry_module
@@ -9,7 +10,7 @@ from ai_client_api.registry import get_client, register_client
 
 
 @pytest.fixture(autouse=True)
-def clear_registry() -> None:
+def clear_registry() -> Generator[None]:
     registry_module._registry["client_factory"] = None
     yield
     registry_module._registry["client_factory"] = None

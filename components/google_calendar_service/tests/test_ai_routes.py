@@ -2,6 +2,7 @@
 
 """Tests for AI route handling."""
 
+from collections.abc import Generator
 from typing import Any
 
 import pytest
@@ -96,7 +97,7 @@ class FakeAiClientUpdateEvent:
 
 
 @pytest.fixture(autouse=True)
-def clear_overrides() -> None:
+def clear_overrides() -> Generator[None]:
     yield
     app.dependency_overrides.clear()
 

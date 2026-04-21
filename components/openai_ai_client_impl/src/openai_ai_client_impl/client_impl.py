@@ -46,7 +46,7 @@ class OpenAiClient(AiClient):
         system_prompt = _build_system_prompt()
         user_prompt = _build_user_prompt(prompt=prompt, context=context)
 
-        response = self._client.responses.create(
+        response = self._client.responses.create( # type: ignore[call-overload]
             model=self._model,
             input=[
                 {"role": "system", "content": system_prompt},
