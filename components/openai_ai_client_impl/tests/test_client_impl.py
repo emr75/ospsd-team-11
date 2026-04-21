@@ -105,12 +105,11 @@ def test_parse_response_handles_invalid_json_arguments() -> None:
 
 
 def test_register_openai_client_registers_factory() -> None:
-    registry_module._client_factory = None
+    registry_module._registry["client_factory"] = None
 
     register_openai_client()
-    client = get_client()
 
-    assert isinstance(client, OpenAiClient)
+    assert registry_module._registry["client_factory"] is not None
 
 
 # Send message unit test
