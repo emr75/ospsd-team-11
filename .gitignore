@@ -1,3 +1,8 @@
+#terraform
+terraform.tfvars
+terraform.tfstate
+.terraform/
+
 # Python-generated files
 __pycache__/
 *.py[oc]
@@ -37,6 +42,7 @@ credentials.json
 
 # coverage reports
 htmlcov/
+test-results/
 
 .coverage*
 TESTING_STATUS.md
