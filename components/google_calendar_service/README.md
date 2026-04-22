@@ -12,17 +12,21 @@ It exposes HTTP endpoints for:
 
 It translates HTTP requests/responses to and from the domain contracts defined in `calendar_client_api`, while delegating Google Calendar operations to `google_calendar_client_impl`.
 
+It also exposes AI-powered routes for processing natural language requests and mapping them to structured calendar operations via the `ai_client_api`.
+
 ---
 
 ## Dependencies
 
 | Package | Purpose |
 |---------|---------|
+| `ai-client-api` | Abstract interface for AI client interactions |
 | `calendar-client-api` | Domain contracts (`Event`, `EventCreate`, `EventUpdate`, `Attendee`) |
 | `google-calendar-client-impl` | Google Calendar implementation used by service routes |
 | `fastapi` | Web framework for API routes and DI |
 | `fastapi-sessions` | Cookie-based session frontend/backend utilities |
 | `httpx` | Outbound HTTP calls (OAuth token exchange) |
+| `openai-ai-client-impl` | OpenAI-backed AI client used for AI routes |
 | `uvicorn` | ASGI server runtime |
 | `python-dotenv` | Environment loading |
 
@@ -37,6 +41,7 @@ It translates HTTP requests/responses to and from the domain contracts defined i
 | `models.py` | Request/response DTOs and conversion helpers |
 | `oauth_utils.py` | PKCE/state generation and OAuth token exchange |
 | `session_store.py` | Session cookie frontend, backend, verifier, token/state helpers |
+| `routes/ai_routes.py` | `/ai` endpoints for processing natural language requests and returning structured responses |
 | `routes/auth_routes.py` | `/auth/login`, `/auth/callback`, `/auth/logout` |
 | `routes/event_routes.py` | `/events` CRUD endpoints with authenticated session dependency |
 | `routes/health_routes.py` | `/health` endpoint |
@@ -79,6 +84,7 @@ All event routes depend on a valid authenticated session with non-expired OAuth 
   ```json
   {"status": "deleted"}
   ```
+- `POST /ai/` — Accepts a natural language prompt and optional context, forwards it to the AI client, and returns a structured response including message text and any tool calls
 
 ---
 
@@ -105,6 +111,11 @@ Common variables:
 - `GOOGLE_CALENDAR_SESSION_IDENTIFIER`
 - `GOOGLE_CALENDAR_SESSION_SECRET`
 - `GOOGLE_CALENDAR_SESSION_COOKIE_SECURE`
+
+### AI Client
+
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` (optional)
 
 ---
 
