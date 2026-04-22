@@ -15,11 +15,13 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore[import-untyped] # no py.typed
 from googleapiclient.discovery import Resource, build  # type: ignore[import-untyped] # no py.typed
+from ospsd_calendar_api import CalendarClient as SharedCalendarClient
+from ospsd_calendar_api import Event as SharedEvent
 
 from google_calendar_client_impl.event_impl import GoogleCalendarEvent
 
 
-class GoogleCalendarClient(CalendarClient):
+class GoogleCalendarClient(CalendarClient, SharedCalendarClient):
     """Concrete implementation of CalendarClient using Google Calendar."""
 
     TOKEN_PATH: ClassVar[str] = "token.json"  # noqa: S105
@@ -120,7 +122,7 @@ class GoogleCalendarClient(CalendarClient):
                 return None
         return creds
 
-    def create_event(self, event_create: EventCreate, calendar_id: str = "primary") -> Event:
+    def create_event_from_dto(self, event_create: EventCreate, calendar_id: str = "primary") -> Event:
         """Create a new calendar event and return its ID."""
         resolved_calendar_id = self._resolve_calendar_id(calendar_id)
         payload = _serialize_event_create(event_create)
@@ -132,14 +134,14 @@ class GoogleCalendarClient(CalendarClient):
         ).execute()
         return self._event_from_payload(created_payload, calendar_id=resolved_calendar_id)
 
-    def get_event(self, event_id: str, calendar_id: str = "primary") -> Event:
+    def get_event_by_id(self, event_id: str, calendar_id: str = "primary") -> Event:
         """Retrieve a calendar event by its ID."""
         resolved_calendar_id = self._resolve_calendar_id(calendar_id)
         events_resource = self.service.events()  # type: ignore[attr-defined] # Resource is dynamically built; .events() not in stubs
         event_payload = events_resource.get(calendarId=resolved_calendar_id, eventId=event_id).execute()
         return self._event_from_payload(event_payload, calendar_id=resolved_calendar_id)
 
-    def list_events(self, max_results: int = 10, calendar_id: str = "primary") -> Iterable[Event]:
+    def list_upcoming_events(self, max_results: int = 10, calendar_id: str = "primary") -> Iterable[Event]:
         """Return an iterable of calendar events."""
         max_result_limit = 2500
         if max_results <= 0:
@@ -176,7 +178,7 @@ class GoogleCalendarClient(CalendarClient):
         ).execute()
         return self._events_from_list_payload(events_payload, calendar_id=resolved_calendar_id)
 
-    def update_event(
+    def update_event_from_patch(
         self,
         event_id: str,
         event_patch: EventUpdate,
@@ -235,6 +237,69 @@ class GoogleCalendarClient(CalendarClient):
             except (TypeError, ValueError):
                 self.logger.warning("Skipping invalid event payload in list response.")
         return parsed_events
+
+    # --- SharedCalendarClient implementation ---
+    # These are thin adapters. They just call the methods above.
+    # delete_event is exactly the same as the local interface
+
+    def list_events(self, start: datetime, end: datetime) -> list[SharedEvent]:
+        """List the events between two dates."""
+        events = self.list_events_between(start=start, end=end)
+        return [_event_to_shared_event(event) for event in events]
+
+    def get_event(self, event_id: str) -> SharedEvent:
+        """Get an event by its ID."""
+        event = self.get_event_by_id(event_id)
+        return _event_to_shared_event(event)
+
+    def create_event(
+        self, title: str, start_time: datetime, end_time: datetime, description: str = "", location: str | None = None
+    ) -> SharedEvent:
+        """Create a calendar event."""
+        event = self.create_event_from_dto(
+            EventCreate(
+                title=title,
+                start_time=start_time,
+                end_time=end_time,
+                description=description,
+                location=location,
+                attendees=[],
+                attachments=[],
+            )
+        )
+        return _event_to_shared_event(event)
+
+    def update_event(  # noqa: PLR0913
+        self,
+        event_id: str,
+        *,
+        title: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        description: str | None = None,
+        location: str | None = None,
+    ) -> SharedEvent:
+        """Update a calendar event."""
+        patch = EventUpdate(
+            title=UNSET if title is None else title,
+            start_time=UNSET if start_time is None else start_time,
+            end_time=UNSET if end_time is None else end_time,
+            description=UNSET if description is None else description,
+            location=UNSET if location is None else location,
+        )
+        event = self.update_event_from_patch(event_id, patch)
+        return _event_to_shared_event(event)
+
+
+def _event_to_shared_event(event: Event) -> SharedEvent:
+    return SharedEvent(
+        id=event.id,
+        title=event.title,
+        start_time=event.start_time,
+        end_time=event.end_time,
+        description=event.description,
+        location=event.location,
+    )
 
 
 def _serialize_event_create(event_create: EventCreate) -> dict[str, object]:

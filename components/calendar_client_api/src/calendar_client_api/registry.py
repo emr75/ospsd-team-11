@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import ClassVar
 
 from calendar_client_api import CalendarClient
 
@@ -23,8 +24,8 @@ FactoryCredential = Callable[[CredentialsToken], CalendarClient]
 
 
 class _ClientRegistry:
-    _factory: Factory | None = None
-    _factory_credentials: FactoryCredential | None = None
+    _factory: ClassVar[Factory | None] = None
+    _factory_credentials: ClassVar[FactoryCredential | None] = None
 
     @classmethod
     def register(cls, factory: Factory) -> None:

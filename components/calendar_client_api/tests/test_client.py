@@ -35,11 +35,11 @@ class TestCalendarClientABC:
     def test_defines_expected_abstract_methods(self) -> None:
         """Test that CalendarClient declares exactly the expected abstract methods."""
         expected_methods = {
-            "create_event",
-            "get_event",
-            "list_events",
+            "create_event_from_dto",
+            "get_event_by_id",
+            "list_upcoming_events",
             "list_events_between",
-            "update_event",
+            "update_event_from_patch",
             "delete_event",
         }
 
@@ -50,11 +50,11 @@ class TestCalendarClientABC:
     def test_abstract_methods_are_decorated(self) -> None:
         """Test that all contract methods are explicitly abstract."""
         method_names = {
-            "create_event",
-            "get_event",
-            "list_events",
+            "create_event_from_dto",
+            "get_event_by_id",
+            "list_upcoming_events",
             "list_events_between",
-            "update_event",
+            "update_event_from_patch",
             "delete_event",
         }
 
@@ -65,19 +65,19 @@ class TestCalendarClientABC:
         """Test that implementing all abstract methods allows instantiation."""
 
         class MinimalClient(CalendarClient):
-            def create_event(self, event_create: EventCreate) -> Event:
+            def create_event_from_dto(self, event_create: EventCreate) -> Event:
                 raise NotImplementedError
 
-            def get_event(self, event_id: str) -> Event:
+            def get_event_by_id(self, event_id: str) -> Event:
                 raise NotImplementedError
 
-            def list_events(self, max_results: int = 10) -> Iterable[Event]:
+            def list_upcoming_events(self, max_results: int = 10) -> Iterable[Event]:
                 raise NotImplementedError
 
             def list_events_between(self, start: datetime, end: datetime) -> Iterable[Event]:
                 raise NotImplementedError
 
-            def update_event(self, event_id: str, event_patch: EventUpdate) -> Event:
+            def update_event_from_patch(self, event_id: str, event_patch: EventUpdate) -> Event:
                 raise NotImplementedError
 
             def delete_event(self, event_id: str) -> None:
@@ -89,7 +89,7 @@ class TestCalendarClientABC:
     def test_list_events_default_max_results_is_10(self) -> None:
         """Test that list_events keeps backward-compatible default max_results."""
         default_max_results = 10
-        signature = inspect.signature(CalendarClient.list_events)
+        signature = inspect.signature(CalendarClient.list_upcoming_events)
         assert signature.parameters["max_results"].default == default_max_results
 
     def test_calendar_client_comprehensive_mock(self) -> None:
@@ -100,22 +100,22 @@ class TestCalendarClientABC:
         mock_event_update = Mock(spec=EventUpdate)
 
         # Set up method return values
-        mock_client.create_event.return_value = mock_event
-        mock_client.get_event.return_value = mock_event
-        mock_client.list_events.return_value = [mock_event]
+        mock_client.create_event_from_dto.return_value = mock_event
+        mock_client.get_event_by_id.return_value = mock_event
+        mock_client.list_upcoming_events.return_value = [mock_event]
         mock_client.list_events_between.return_value = [mock_event]
-        mock_client.update_event.return_value = mock_event
+        mock_client.update_event_from_patch.return_value = mock_event
         mock_client.delete_event.return_value = None
 
         # Test all methods
-        result_create = mock_client.create_event(mock_event_create)
-        result_get = mock_client.get_event("event_123")
-        result_list = mock_client.list_events(10)
+        result_create = mock_client.create_event_from_dto(mock_event_create)
+        result_get = mock_client.get_event_by_id("event_123")
+        result_list = mock_client.list_upcoming_events(10)
         result_list_between = mock_client.list_events_between(
             datetime(2026, 1, 1, tzinfo=UTC),
             datetime(2026, 1, 2, tzinfo=UTC),
         )
-        result_update = mock_client.update_event("event_123", mock_event_update)
+        result_update = mock_client.update_event_from_patch("event_123", mock_event_update)
         result_delete = mock_client.delete_event("event_123")
 
         # Verify results
@@ -127,10 +127,10 @@ class TestCalendarClientABC:
         assert result_delete is None
 
         # Verify calls
-        mock_client.create_event.assert_called_once_with(mock_event_create)
-        mock_client.get_event.assert_called_once_with("event_123")
-        mock_client.list_events.assert_called_once_with(10)
-        mock_client.update_event.assert_called_once_with("event_123", mock_event_update)
+        mock_client.create_event_from_dto.assert_called_once_with(mock_event_create)
+        mock_client.get_event_by_id.assert_called_once_with("event_123")
+        mock_client.list_upcoming_events.assert_called_once_with(10)
+        mock_client.update_event_from_patch.assert_called_once_with("event_123", mock_event_update)
         mock_client.delete_event.assert_called_once_with("event_123")
 
 

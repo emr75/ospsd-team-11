@@ -53,7 +53,7 @@ class TestGoogleCalendarClientCreate:
             attachments=["https://example.com/spec"],
         )
 
-        event = client.create_event(created)
+        event = client.create_event_from_dto(created)
 
         service.events.return_value.insert.assert_called_once_with(
             calendarId="primary",
@@ -84,7 +84,7 @@ class TestGoogleCalendarClientCreate:
             attachments=[],
         )
 
-        client.create_event(created)
+        client.create_event_from_dto(created)
 
         service.events.return_value.insert.assert_called_once()
         _, kwargs = service.events.return_value.insert.call_args
@@ -100,7 +100,7 @@ class TestGoogleCalendarClientRead:
         client, service = _build_client(monkeypatch)
         service.events.return_value.get.return_value.execute.return_value = _event_payload(event_id="evt_456")
 
-        event = client.get_event("evt_456", calendar_id="work")
+        event = client.get_event_by_id("evt_456", calendar_id="work")
 
         service.events.return_value.get.assert_called_once_with(
             calendarId="work",
@@ -118,7 +118,7 @@ class TestGoogleCalendarClientRead:
             ]
         }
 
-        events = list(client.list_events(max_results=2, calendar_id="work"))
+        events = list(client.list_upcoming_events(max_results=2, calendar_id="work"))
 
         service.events.return_value.list.assert_called_once_with(
             calendarId="work",
@@ -133,7 +133,7 @@ class TestGoogleCalendarClientRead:
         client, service = _build_client(monkeypatch)
 
         with pytest.raises(ValueError, match="max_results"):
-            client.list_events(max_results=0)
+            client.list_upcoming_events(max_results=0)
 
         service.events.return_value.list.assert_not_called()
 
@@ -186,7 +186,7 @@ class TestGoogleCalendarClientUpdateDelete:
             description=None,
             location="Zoom",
         )
-        event = client.update_event("evt_999", event_patch, calendar_id="work")
+        event = client.update_event_from_patch("evt_999", event_patch, calendar_id="work")
 
         service.events.return_value.patch.assert_called_once_with(
             calendarId="work",
@@ -208,7 +208,7 @@ class TestGoogleCalendarClientUpdateDelete:
         client, service = _build_client(monkeypatch)
 
         with pytest.raises(ValueError, match="No fields"):
-            client.update_event("evt_1", EventUpdate())
+            client.update_event_from_patch("evt_1", EventUpdate())
 
         service.events.return_value.patch.assert_not_called()
 

@@ -152,7 +152,7 @@ def _install_service_adapter_mocks(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _consumer_flow(client: CalendarClient, *, title_prefix: str) -> None:
     """Consumer workflow that uses only the abstract CalendarClient interface."""
-    created = client.create_event(
+    created = client.create_event_from_dto(
         EventCreate(
             title=f"{title_prefix} created",
             start_time=_NOW,
@@ -166,7 +166,7 @@ def _consumer_flow(client: CalendarClient, *, title_prefix: str) -> None:
     assert created.id
     assert title_prefix in created.title
 
-    fetched = client.get_event(created.id)
+    fetched = client.get_event_by_id(created.id)
     assert fetched.id == created.id
     assert fetched.title == created.title
 
@@ -176,7 +176,7 @@ def _consumer_flow(client: CalendarClient, *, title_prefix: str) -> None:
     assert any(event.id == created.id for event in events)
 
     updated_title = f"{title_prefix} updated"
-    updated = client.update_event(
+    updated = client.update_event_from_patch(
         created.id,
         EventUpdate(
             title=updated_title,
