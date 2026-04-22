@@ -912,7 +912,7 @@ wheels = [
 [[package]]
 name = "ospsd-calendar-api"
 version = "0.1.0"
-source = { git = "https://github.com/DeMoliT1on/ospsd-calendar-api#11c97607046b0fe9735bde2d656a4f8b93935d75" }
+source = { git = "https://github.com/DeMoliT1on/ospsd-calendar-api#e8c7b2a8a78e1fc0aeb6cb7acf8d5e5f050d09b5" }
 
 [[package]]
 name = "ospsd-team-11"

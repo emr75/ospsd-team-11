@@ -5,7 +5,7 @@ import os
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import ClassVar
 
 import calendar_client_api
 from calendar_client_api import Attendee, CalendarClient, CredentialsToken, Event, EventCreate, EventUpdate
@@ -253,24 +253,40 @@ class GoogleCalendarClient(CalendarClient, SharedCalendarClient):
         return _event_to_shared_event(event)
 
     def create_event(
-        self, title: str, start: datetime, end: datetime, description: str = "", location: str | None = None
+        self, title: str, start_time: datetime, end_time: datetime, description: str = "", location: str | None = None
     ) -> SharedEvent:
         """Create a calendar event."""
-        event = self.create_event_from_dto(EventCreate(
-            title=title,
-            start_time=start,
-            end_time=end,
-            description=description,
-            location=location,
-            attendees=[],
-            attachments=[],
-        ))
+        event = self.create_event_from_dto(
+            EventCreate(
+                title=title,
+                start_time=start_time,
+                end_time=end_time,
+                description=description,
+                location=location,
+                attendees=[],
+                attachments=[],
+            )
+        )
         return _event_to_shared_event(event)
 
-    def update_event(self, event_id: str, **kwargs: Any) -> SharedEvent:  # noqa: ANN401 kwargs is defined by shared interface; cannot avoid Any here.
+    def update_event(  # noqa: PLR0913
+        self,
+        event_id: str,
+        *,
+        title: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        description: str | None = None,
+        location: str | None = None,
+    ) -> SharedEvent:
         """Update a calendar event."""
-        patch = _kwargs_to_event_update(kwargs)
-
+        patch = EventUpdate(
+            title=UNSET if title is None else title,
+            start_time=UNSET if start_time is None else start_time,
+            end_time=UNSET if end_time is None else end_time,
+            description=UNSET if description is None else description,
+            location=UNSET if location is None else location,
+        )
         event = self.update_event_from_patch(event_id, patch)
         return _event_to_shared_event(event)
 
@@ -285,14 +301,6 @@ def _event_to_shared_event(event: Event) -> SharedEvent:
         location=event.location,
     )
 
-def _kwargs_to_event_update(kwargs: dict[str, Any]) -> EventUpdate:
-    return EventUpdate(
-        title=kwargs.get("title", UNSET),
-        start_time=kwargs.get("start_time", UNSET),
-        end_time=kwargs.get("end_time", UNSET),
-        description=kwargs.get("description", UNSET),
-        location=kwargs.get("location", UNSET),
-    )
 
 def _serialize_event_create(event_create: EventCreate) -> dict[str, object]:
     payload: dict[str, object] = {
