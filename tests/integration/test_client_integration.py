@@ -97,9 +97,9 @@ def test_interface_consumer_flow_works_with_di_injected_impl() -> None:
     listed = list(client.list_events_between(now - timedelta(minutes=5), end + timedelta(minutes=5)))
     assert any(event.id == created.id for event in listed)
 
-    updated = client.update_event_from_patch(created.id, EventUpdate(title="Interface-first updated",
-                                                                     description="updated description",
-                                                                     location="Room B"))
+    updated = client.update_event_from_patch(
+        created.id, EventUpdate(title="Interface-first updated", description="updated description", location="Room B")
+    )
     assert updated.id == created.id
     assert updated.title == "Interface-first updated"
     assert updated.description == "updated description"
