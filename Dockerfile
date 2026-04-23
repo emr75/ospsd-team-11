@@ -11,6 +11,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Install Git for VCS-based dependencies in uv.lock
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy workspace metadata first for better layer caching
 COPY pyproject.toml uv.lock ./
 COPY components/calendar_client_api/pyproject.toml components/calendar_client_api/pyproject.toml
