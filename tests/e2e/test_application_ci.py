@@ -176,11 +176,14 @@ def _consumer_flow(client: CalendarClient, *, title_prefix: str) -> None:
     assert any(event.id == created.id for event in events)
 
     updated_title = f"{title_prefix} updated"
-    updated = client.update_event_from_patch(created.id, EventUpdate(
-        title=updated_title,
-        description="Updated by CI e2e",
-        location="Updated Room",
-    ))
+    updated = client.update_event_from_patch(
+        created.id,
+        EventUpdate(
+            title=updated_title,
+            description="Updated by CI e2e",
+            location="Updated Room",
+        ),
+    )
     assert updated.id == created.id
     assert updated.title == updated_title
     assert updated.description == "Updated by CI e2e"
