@@ -1,12 +1,15 @@
 """AI routes for handling assistant interactions."""
 
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Protocol, cast
 
 from ai_client_api import get_client as get_ai_client
 from calendar_client_api import get_client as get_calendar_client
 from fastapi import APIRouter
 from pydantic import BaseModel
+
+from google_calendar_service.integrations.issue_to_calendar import create_event_from_issue_flow
 
 
 class CalendarClientProtocol(Protocol):
@@ -54,7 +57,18 @@ def handle_ai(request: AiRequest) -> AiResponseModel:
     result: object | None = None
 
     if tool_call.tool_name == "create_event":
-        result = calendar_client.create_event(**tool_call.arguments)
+        create_args = dict(tool_call.arguments)
+
+        start = create_args.get("start")
+        end = create_args.get("end")
+
+        if isinstance(start, str):
+            create_args["start"] = datetime.fromisoformat(start)
+
+        if isinstance(end, str):
+            create_args["end"] = datetime.fromisoformat(end)
+
+        result = calendar_client.create_event(**create_args)
 
     elif tool_call.tool_name == "list_events":
         result = calendar_client.list_events(**tool_call.arguments)
@@ -62,15 +76,20 @@ def handle_ai(request: AiRequest) -> AiResponseModel:
     elif tool_call.tool_name == "update_event":
         result = _handle_update_event(calendar_client, tool_call.arguments)
 
-    elif tool_call.tool_name == "create_event_from_ticket":
-        # For the ticket vertical - TBC
-        result = {"status": "not implemented yet"}
+    elif tool_call.tool_name == "create_event_from_issue":
+        issue_id = tool_call.arguments["issue_id"]
+        start = tool_call.arguments["start"]
+        end = tool_call.arguments["end"]
 
+        result = create_event_from_issue_flow(
+            issue_id=issue_id,
+            start=start,
+            end=end,
+        )
     return AiResponseModel(
         message=ai_response.message,
         result=result,
     )
-
 
 def _handle_update_event(
     calendar_client: CalendarClientProtocol,
@@ -79,6 +98,15 @@ def _handle_update_event(
     """Resolve an event reference and update the matching event."""
     update_arguments = dict(arguments)
     event_reference_obj = update_arguments.pop("event_reference", None)
+
+    start_time = update_arguments.get("start_time")
+    end_time = update_arguments.get("end_time")
+
+    if isinstance(start_time, str):
+        update_arguments["start_time"] = datetime.fromisoformat(start_time)
+
+    if isinstance(end_time, str):
+        update_arguments["end_time"] = datetime.fromisoformat(end_time)
 
     if not isinstance(event_reference_obj, str):
         return {"error": "Missing event_reference"}

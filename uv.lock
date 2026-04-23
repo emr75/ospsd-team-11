@@ -1040,6 +1040,11 @@ requires-dist = [
 ]
 
 [[package]]
+name = "ospd-issue-tracker-api"
+version = "0.1.0"
+source = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git?rev=main#63abe1c8607fce7e92a1a68475580fd380e3a1ed" }
+
+[[package]]
 name = "ospsd-calendar-api"
 version = "0.1.0"
 source = { git = "https://github.com/DeMoliT1on/ospsd-calendar-api#11c97607046b0fe9735bde2d656a4f8b93935d75" }
@@ -1050,6 +1055,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "ospd-issue-tracker-api" },
     { name = "pydantic" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -1076,6 +1082,7 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.7.3" },
     { name = "mkdocstrings-python", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.17.0" },
+    { name = "ospd-issue-tracker-api", git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git?rev=main" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pymdown-extensions", marker = "extra == 'dev'", specifier = ">=10.16.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1" },

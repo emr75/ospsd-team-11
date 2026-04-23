@@ -56,14 +56,18 @@ class FakeAiClientListEvents:
         )
 
 
-class FakeAiClientTicket:
+class FakeAiClientIssue:
     def send_message(self, prompt: str, context: dict[str, Any] | None = None) -> AiResponse:
         return AiResponse(
-            message="I can create that from the ticket.",
+            message="I can create that from the issue.",
             tool_calls=[
                 AiToolCall(
-                    tool_name="create_event_from_ticket",
-                    arguments={"ticket_id": "123"},
+                    tool_name="create_event_from_issue",
+                    arguments={
+                        "issue_id": "123",
+                        "start": "2026-04-23T15:00:00-04:00",
+                        "end": "2026-04-23T16:00:00-04:00",
+                    },
                 )
             ],
         )
@@ -138,19 +142,44 @@ class TestAiRoutes:
         assert response.json()["message"] == "Let me check."
         assert response.json()["result"][0]["id"] == "evt_1"
 
-    def test_handle_ai_returns_placeholder_for_create_event_from_ticket(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        monkeypatch.setattr(ai_routes, "get_ai_client", FakeAiClientTicket)
+    def test_handle_ai_executes_create_event_from_issue_tool_call(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(ai_routes, "get_ai_client", FakeAiClientIssue)
         monkeypatch.setattr(ai_routes, "get_calendar_client", FakeCalendarClient)
 
-        response = client.post("/ai/", json={"prompt": "Create a meeting from ticket #123"})
+        def fake_create_event_from_issue_flow(
+            issue_id: str,
+            start: str,
+            end: str,
+        ) -> dict[str, Any]:
+            assert issue_id == "123"
+            assert start == "2026-04-23T15:00:00-04:00"
+            assert end == "2026-04-23T16:00:00-04:00"
+            return {
+                "issue_id": "123",
+                "event_id": "evt_999",
+                "event_title": "Issue Review: Broken auth redirect",
+                "board_name": "Sprint Board",
+                "status": "created",
+            }
+
+        monkeypatch.setattr(
+            ai_routes,
+            "create_event_from_issue_flow",
+            fake_create_event_from_issue_flow,
+        )
+
+        response = client.post("/ai/", json={"prompt": "Create a meeting from issue #123"})
 
         assert response.status_code == HTTP_OK
         assert response.json() == {
-            "message": "I can create that from the ticket.",
-            "result": {"status": "not implemented yet"},
+            "message": "I can create that from the issue.",
+            "result": {
+                "issue_id": "123",
+                "event_id": "evt_999",
+                "event_title": "Issue Review: Broken auth redirect",
+                "board_name": "Sprint Board",
+                "status": "created",
+            },
         }
 
     def test_handle_ai_executes_update_event_tool_call(self, monkeypatch: pytest.MonkeyPatch) -> None:

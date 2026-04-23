@@ -41,7 +41,7 @@ def test_build_tools_contains_expected_tool_names() -> None:
     assert "create_event" in tool_names
     assert "list_events" in tool_names
     assert "update_event" in tool_names
-    assert "create_event_from_ticket" in tool_names
+    assert "create_event_from_issue" in tool_names
 
 
 def test_parse_response_returns_message_only_when_no_tool_calls() -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import openai_ai_client_impl  # noqa: F401
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from starlette.responses import RedirectResponse

@@ -53,7 +53,11 @@ class OpenAiClient(AiClient):
                 {"role": "user", "content": user_prompt},
             ],
             tools=_build_tools(),
-            tool_choice="auto",
+            tool_choice = (
+                {"type": "function", "name": "create_event_from_issue"}
+                    if "issue" in prompt.lower()
+                else "auto"
+            )
         )
 
         return _parse_response(response)
@@ -131,16 +135,16 @@ def _build_tools() -> list[dict[str, Any]]:
         },
         {
             "type": "function",
-            "name": "create_event_from_ticket",
-            "description": "Create a calendar meeting using an external ticket as context.",
+            "name": "create_event_from_issue",
+            "description": "Create a calendar event from an issue when the user asks to schedule a meeting related to an issue.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "ticket_id": {"type": "string"},
+                    "issue_id": {"type": "string"},
                     "start": {"type": "string", "description": "ISO 8601 datetime"},
                     "end": {"type": "string", "description": "ISO 8601 datetime"},
                 },
-                "required": ["ticket_id"],
+                "required": ["issue_id", "start", "end"],
                 "additionalProperties": False,
             },
         },
