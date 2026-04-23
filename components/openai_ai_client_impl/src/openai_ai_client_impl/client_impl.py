@@ -9,12 +9,6 @@ from ai_client_api import AiClient, AiResponse, AiToolCall
 from openai import OpenAI
 
 
-class ResponseItemProtocol(Protocol):
-    """Protocol for response items returned by the OpenAI SDK."""
-
-    type: str
-
-
 class OpenAIResponseProtocol(Protocol):
     """Protocol for the subset of OpenAI response fields used by the parser."""
 
