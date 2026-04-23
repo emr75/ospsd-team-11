@@ -1,9 +1,17 @@
 # ruff: noqa: D100, D101, D102, D103, D107
+from datetime import datetime
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from google_calendar_service.integrations import issue_to_calendar
 
+if TYPE_CHECKING:
+    from issue_tracker_client_api.client import Issue
+
+# For fake content
+ISSUE_ID = 123
+BOARD_ID = "board-1"
 
 class FakeIssueClient:
     def __init__(self) -> None:
@@ -34,12 +42,12 @@ class FakeCalendarClient:
 
 
 def test_build_event_payload_from_issue_includes_issue_fields() -> None:
-    issue = SimpleNamespace(
+    issue = cast("Issue", SimpleNamespace(
         id=123,
         title="Broken auth redirect",
         body="Investigate redirect_uri mismatch in OAuth callback flow.",
         state=SimpleNamespace(value="open"),
-    )
+    ))
 
     payload = issue_to_calendar.build_event_payload_from_issue(
         issue=issue,
@@ -61,7 +69,7 @@ def test_create_event_from_issue_flow_fetches_issue_and_creates_calendar_event(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("TRELLO_BOARD_ID", "board-1")
-    
+
     fake_issue_client = FakeIssueClient()
     fake_calendar_client = FakeCalendarClient()
 
@@ -82,15 +90,15 @@ def test_create_event_from_issue_flow_fetches_issue_and_creates_calendar_event(
         end="2026-04-23T16:00:00-04:00",
     )
 
-    assert fake_issue_client.requested_issue_id == 123
-    assert fake_issue_client.requested_board == "board-1"
+    assert fake_issue_client.requested_issue_id == ISSUE_ID
+    assert fake_issue_client.requested_board == BOARD_ID
 
     assert len(fake_calendar_client.create_event_calls) == 1
     create_call = fake_calendar_client.create_event_calls[0]
     description = create_call["description"]
 
     assert create_call["title"] == "Issue Review: Broken auth redirect"
-    assert create_call["start"] == "2026-04-23T15:00:00-04:00"
-    assert create_call["end"] == "2026-04-23T16:00:00-04:00"
+    assert create_call["start"] == datetime.fromisoformat("2026-04-23T15:00:00-04:00")
+    assert create_call["end"] == datetime.fromisoformat("2026-04-23T16:00:00-04:00")
     assert isinstance(description, str)
     assert "Issue ID: 123" in description

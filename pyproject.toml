@@ -6,10 +6,14 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.135.1",
+    "google-calendar-service",
+    "google-calendar-service-adapter",
     "issue-tracker-client-api",
     "issue-tracker-client-impl",
     "ospd-issue-tracker-api",
     "pydantic>=2.12.5",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
     "uvicorn[standard]>=0.42.0",
 ]
 
@@ -151,4 +155,9 @@ exclude_lines = [
     "pragma: no cover",
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
 ]
