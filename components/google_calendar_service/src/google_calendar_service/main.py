@@ -30,4 +30,3 @@ app.include_router(ai_router)
 app.include_router(auth_router)
 app.include_router(health_router)
 app.include_router(event_router)
-

@@ -32,4 +32,3 @@ def test_register_client_allows_get_client_to_return_registered_client() -> None
     client = get_client()
 
     assert client is mock_client
-

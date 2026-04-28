@@ -13,9 +13,11 @@ class CreatedEventProtocol(Protocol):
     id: str
     title: str
 
+
 class CalendarCreateEventProtocol(Protocol):
     def create_event(self, **kwargs: object) -> CreatedEventProtocol:
         """Create a calendar event."""
+
 
 def build_event_payload_from_issue(
     issue: Issue,

@@ -83,6 +83,7 @@ class FakeCalendarClient:
     def update_event(self, **kwargs: Any) -> dict[str, Any]:
         return {"status": "updated", "args": kwargs}
 
+
 class FakeAiClientUpdateEvent:
     def send_message(self, prompt: str, context: dict[str, Any] | None = None) -> AiResponse:
         return AiResponse(
@@ -193,11 +194,10 @@ class TestAiRoutes:
         assert response.json()["result"]["status"] == "updated"
         assert response.json()["result"]["args"]["event_id"] == "evt_1"
 
-
     def test_handle_ai_returns_error_when_update_event_reference_not_found(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        ) -> None:
+    ) -> None:
         monkeypatch.setattr(ai_routes, "get_ai_client", FakeAiClientUpdateEvent)
 
         class FakeCalendarClientNoMatch(FakeCalendarClient):
@@ -209,6 +209,4 @@ class TestAiRoutes:
         response = client.post("/ai/", json={"prompt": "Move Team Sync to 4pm"})
 
         assert response.status_code == HTTP_OK
-        assert response.json()["result"] == {
-            "error": "No event found for reference: Team Sync"
-        }
+        assert response.json()["result"] == {"error": "No event found for reference: Team Sync"}

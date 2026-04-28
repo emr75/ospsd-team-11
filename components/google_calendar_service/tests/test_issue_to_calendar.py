@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 ISSUE_ID = 123
 BOARD_ID = "board-1"
 
+
 class FakeIssueClient:
     def __init__(self) -> None:
         self.requested_board: str | None = None
@@ -42,12 +43,15 @@ class FakeCalendarClient:
 
 
 def test_build_event_payload_from_issue_includes_issue_fields() -> None:
-    issue = cast("Issue", SimpleNamespace(
-        id=123,
-        title="Broken auth redirect",
-        body="Investigate redirect_uri mismatch in OAuth callback flow.",
-        state=SimpleNamespace(value="open"),
-    ))
+    issue = cast(
+        "Issue",
+        SimpleNamespace(
+            id=123,
+            title="Broken auth redirect",
+            body="Investigate redirect_uri mismatch in OAuth callback flow.",
+            state=SimpleNamespace(value="open"),
+        ),
+    )
 
     payload = issue_to_calendar.build_event_payload_from_issue(
         issue=issue,
@@ -64,6 +68,7 @@ def test_build_event_payload_from_issue_includes_issue_fields() -> None:
     assert "Issue ID: 123" in description
     assert "Investigate redirect_uri mismatch in OAuth callback flow." in description
     assert "State: open" in description
+
 
 def test_create_event_from_issue_flow_fetches_issue_and_creates_calendar_event(
     monkeypatch: pytest.MonkeyPatch,

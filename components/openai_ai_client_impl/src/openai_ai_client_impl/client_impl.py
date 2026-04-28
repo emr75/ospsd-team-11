@@ -40,18 +40,14 @@ class OpenAiClient(AiClient):
         system_prompt = _build_system_prompt()
         user_prompt = _build_user_prompt(prompt=prompt, context=context)
 
-        response = self._client.responses.create( # type: ignore[call-overload]
+        response = self._client.responses.create(  # type: ignore[call-overload]
             model=self._model,
             input=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
             tools=_build_tools(),
-            tool_choice = (
-                {"type": "function", "name": "create_event_from_issue"}
-                    if "issue" in prompt.lower()
-                else "auto"
-            )
+            tool_choice="auto",
         )
 
         return _parse_response(response)
@@ -65,6 +61,7 @@ def _build_system_prompt() -> str:
         "Always return valid JSON arguments when calling tools. "
         "If no tool is needed, return a concise natural language response."
     )
+
 
 def _build_user_prompt(prompt: str, context: dict[str, Any] | None) -> str:
     if context is None:

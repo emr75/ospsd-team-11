@@ -97,6 +97,20 @@ class StatusResponse(BaseModel):
     status: str
 
 
+class AiRequest(BaseModel):
+    """Incoming AI request payload."""
+
+    prompt: str
+    context: dict[str, object] | None = None
+
+
+class AiResponseModel(BaseModel):
+    """Serialized AI response returned by the route."""
+
+    message: str
+    result: object | None = None
+
+
 def to_attendee_response(attendee: Attendee) -> AttendeeResponse:
     """Convert an attendee domain model to a response DTO."""
     return AttendeeResponse(

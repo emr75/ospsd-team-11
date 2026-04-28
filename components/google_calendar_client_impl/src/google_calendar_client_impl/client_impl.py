@@ -5,7 +5,7 @@ import os
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import ClassVar
 
 import calendar_client_api
 from calendar_client_api import Attendee, CalendarClient, CredentialsToken, Event, EventCreate, EventUpdate

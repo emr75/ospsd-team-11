@@ -12,3 +12,9 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_client_api"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/ai_client_api/py.typed" = "ai_client_api/py.typed"

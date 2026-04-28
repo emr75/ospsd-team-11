@@ -49,9 +49,7 @@ def test_parse_response_returns_message_only_when_no_tool_calls() -> None:
         output=[
             SimpleNamespace(
                 type="message",
-                content=[
-                    SimpleNamespace(type="output_text", text="Here is your answer.")
-                ],
+                content=[SimpleNamespace(type="output_text", text="Here is your answer.")],
             )
         ]
     )
@@ -69,9 +67,7 @@ def test_parse_response_extracts_function_call_arguments() -> None:
         output=[
             SimpleNamespace(
                 type="message",
-                content=[
-                    SimpleNamespace(type="output_text", text="I can schedule that.")
-                ],
+                content=[SimpleNamespace(type="output_text", text="I can schedule that.")],
             ),
             SimpleNamespace(
                 type="function_call",
@@ -117,14 +113,13 @@ def test_register_openai_client_registers_factory() -> None:
 
 # Send message unit test
 
+
 def test_send_message_calls_openai_and_returns_parsed_response() -> None:
     fake_response = SimpleNamespace(
         output=[
             SimpleNamespace(
                 type="message",
-                content=[
-                    SimpleNamespace(type="output_text", text="I can schedule that.")
-                ],
+                content=[SimpleNamespace(type="output_text", text="I can schedule that.")],
             ),
             SimpleNamespace(
                 type="function_call",

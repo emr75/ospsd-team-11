@@ -7,9 +7,9 @@ from typing import Protocol, cast
 from ai_client_api import get_client as get_ai_client
 from calendar_client_api import get_client as get_calendar_client
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 from google_calendar_service.integrations.issue_to_calendar import create_event_from_issue_flow
+from google_calendar_service.models import AiRequest, AiResponseModel
 
 
 class CalendarClientProtocol(Protocol):
@@ -17,26 +17,15 @@ class CalendarClientProtocol(Protocol):
 
     def list_events(self, **kwargs: object) -> list[object]:
         """Return calendar events."""
+
     def create_event(self, **kwargs: object) -> object:
         """Create calendar event."""
+
     def update_event(self, **kwargs: object) -> object:
         """Update calendar event."""
 
+
 router = APIRouter(prefix="/ai", tags=["ai"])
-
-
-class AiRequest(BaseModel):
-    """Incoming AI request payload."""
-
-    prompt: str
-    context: dict[str, object] | None = None
-
-
-class AiResponseModel(BaseModel):
-    """Serialized AI response returned by the route."""
-
-    message: str
-    result: object | None = None
 
 
 @router.post("/")
@@ -91,6 +80,7 @@ def handle_ai(request: AiRequest) -> AiResponseModel:
         result=result,
     )
 
+
 def _handle_update_event(
     calendar_client: CalendarClientProtocol,
     arguments: Mapping[str, object],
@@ -139,13 +129,7 @@ def _resolve_event_id(
             title = getattr(event, "title", None)
             event_id = getattr(event, "id", None)
 
-        if (
-            isinstance(title, str)
-            and isinstance(event_id, str)
-            and title.strip().lower() == normalized_reference
-        ):
+        if isinstance(title, str) and isinstance(event_id, str) and title.strip().lower() == normalized_reference:
             return event_id
 
     return None
-
-
