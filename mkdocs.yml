@@ -23,6 +23,7 @@ theme:
 nav:
   - "Overview": "index.md"
   - "Architecture": "component.md"
+  - "IaC and Telemetry": "telemetry.md"
   - "API Reference":
       - "AI Client API": "api/ai_client_api.md"
       - "OpenAI AI Client Implementation": "api/openai_ai_client_impl.md"

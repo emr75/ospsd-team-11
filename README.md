@@ -25,6 +25,7 @@ This project follows a **ports/adapters architecture**:
   - `openai_ai_client_impl` (OpenAI-backed AI client adapter)
 - **FastAPI Service**: `google_calendar_service` (FastAPI app)
 - **Generated API Client**: `google_calendar_service_api_client`
+- **Telemetry**: Prometheus metrics exposed from `google_calendar_service` at `/metrics`
 
 ---
 
@@ -42,6 +43,8 @@ This project follows a **ports/adapters architecture**:
 │   └── openai_ai_client_impl/              # OpenAI AI adapter
 ├── tests/                                  # Integration + e2e tests
 ├── docs/                                   # MkDocs source
+├── infra/                                  # Terraform-managed Render deployment
+├── monitoring/                             # Prometheus and Grafana observability stack
 ├── Dockerfile                              # uv-based multi-stage image
 ├── pyproject.toml                          # uv workspace config
 └── uv.lock                                 # locked dependency graph
@@ -135,6 +138,28 @@ uv run pytest --cov=components/calendar_client_api/src --cov=components/google_c
 # Run a specific test file
 uv run pytest tests/integration/test_client_integration.py -v
 ```
+
+## Telemetry
+
+The FastAPI service exposes Prometheus-compatible metrics at:
+
+```bash
+GET /metrics
+```
+
+The endpoint includes request latency histograms (`http_request_duration_seconds`) and request counters grouped by status (`http_requests_total`). A Prometheus/Grafana dashboard can derive:
+
+- Request latency from `http_request_duration_seconds`.
+- Success rate from 2xx `http_requests_total` samples.
+- Failure rate from 4xx/5xx `http_requests_total` samples.
+
+Run the local monitoring stack:
+
+```bash
+docker compose -f monitoring/docker-compose.yml up --build
+```
+
+Then open Grafana at `http://localhost:3000` and use the preloaded `Calendar Service Observability` dashboard. Terraform deployment details are in `infra/`, and the HW3 IaC/telemetry notes are documented in `docs/telemetry.md`.
 
 ### Linting and formatting
 

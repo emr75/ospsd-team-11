@@ -168,6 +168,19 @@ class TestHealthEndpoint:
         assert response.json() == {"status": "ok"}
 
 
+class TestTelemetryEndpoint:
+    def test_metrics_endpoint_exposes_request_telemetry(self) -> None:
+        client.get("/health")
+
+        response = client.get("/metrics")
+
+        assert response.status_code == HTTP_OK
+        assert "http_requests_total" in response.text
+        assert 'handler="/health"' in response.text
+        assert 'status="2xx"' in response.text
+        assert "http_request_duration_seconds" in response.text
+
+
 class TestListEventsEndpoint:
     def test_returns_serialized_events(self) -> None:
         response = client.get("/events/")

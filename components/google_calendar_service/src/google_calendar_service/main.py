@@ -5,6 +5,7 @@ from __future__ import annotations
 import openai_ai_client_impl  # noqa: F401
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.responses import RedirectResponse
 
 from google_calendar_service.routes.ai_routes import router as ai_router
@@ -18,6 +19,8 @@ app = FastAPI(
     title="Google Calendar Service",
     version="0.1.0",
 )
+
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get("/")

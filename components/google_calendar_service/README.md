@@ -27,6 +27,7 @@ It also exposes AI-powered routes for processing natural language requests and m
 | `fastapi-sessions` | Cookie-based session frontend/backend utilities |
 | `httpx` | Outbound HTTP calls (OAuth token exchange) |
 | `openai-ai-client-impl` | OpenAI-backed AI client used for AI routes |
+| `prometheus-fastapi-instrumentator` | Prometheus metrics for request latency and status counts |
 | `uvicorn` | ASGI server runtime |
 | `python-dotenv` | Environment loading |
 
@@ -85,6 +86,15 @@ All event routes depend on a valid authenticated session with non-expired OAuth 
   {"status": "deleted"}
   ```
 - `POST /ai/` — Accepts a natural language prompt and optional context, forwards it to the AI client, and returns a structured response including message text and any tool calls
+
+### Telemetry
+
+- `GET /metrics` — Prometheus scrape endpoint.
+
+The exported metrics include:
+
+- `http_request_duration_seconds` for request latency.
+- `http_requests_total` labeled by route, method, and grouped status code for success/failure rate dashboards.
 
 ---
 
