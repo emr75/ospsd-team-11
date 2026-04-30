@@ -1,24 +1,8 @@
-"""Abstract AI client contract for calendar and cross-service assistant workflows."""
+"""Abstract AI client contract for assistant workflows."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from collections.abc import Callable
 from typing import Any
-
-
-@dataclass(frozen=True)
-class AiToolCall:
-    """A structured tool call requested by the AI model."""
-
-    tool_name: str
-    arguments: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class AiResponse:
-    """Result returned by the AI client."""
-
-    message: str
-    tool_calls: list[AiToolCall]
 
 
 class AiClient(ABC):
@@ -29,6 +13,19 @@ class AiClient(ABC):
         self,
         prompt: str,
         context: dict[str, Any] | None = None,
-    ) -> AiResponse:
-        """Send a prompt to the AI model and return its response."""
+    ) -> str:
+        """Send a single prompt to the AI model and return text."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def run_chat_with_tools(
+        self,
+        *,
+        system_prompt: str,
+        user_message: str,
+        tools: list[dict[str, Any]],
+        handle_tool: Callable[[str, dict[str, Any]], str],
+        max_tool_rounds: int = 8,
+    ) -> str:
+        """Run a chat completion loop that lets the model call tools."""
         raise NotImplementedError

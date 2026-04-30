@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "ospd-issue-tracker-api",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -28,8 +30,12 @@ members = [
     "components/google_calendar_service",
     "components/google_calendar_service_api_client",
     "components/google_calendar_service_adapter",
+    "components/issue_tracker_api",
     "components/openai_ai_client_impl",
 ]
+
+[tool.uv.sources]
+ospd-issue-tracker-api = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git", rev = "main" }
 
 [tool.ruff]
 line-length = 130
@@ -70,6 +76,7 @@ mypy_path = [
     "components/google_calendar_client_impl/src",
     "components/google_calendar_service/src",
     "components/google_calendar_service_adapter/src",
+    "components/issue_tracker_api/src",
     "components/openai_ai_client_impl/src",
 ]
 ignore_missing_imports = false

@@ -10,6 +10,7 @@ members = [
     "google-calendar-service",
     "google-calendar-service-adapter",
     "google-calendar-service-client",
+    "issue-tracker-api",
     "openai-ai-client-impl",
     "ospsd-team-11",
 ]
@@ -494,7 +495,7 @@ dependencies = [
     { name = "fastapi-sessions" },
     { name = "google-calendar-client-impl" },
     { name = "httpx" },
-    { name = "issue-tracker-client-api" },
+    { name = "issue-tracker-api" },
     { name = "issue-tracker-client-impl" },
     { name = "openai-ai-client-impl" },
     { name = "python-dotenv" },
@@ -509,7 +510,7 @@ requires-dist = [
     { name = "fastapi-sessions", specifier = ">=0.3.2" },
     { name = "google-calendar-client-impl", editable = "components/google_calendar_client_impl" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "issue-tracker-client-api", git = "https://github.com/yawnka/ospsd-team-03.git?subdirectory=components%2Fissue_tracker_client_api" },
+    { name = "issue-tracker-api", editable = "components/issue_tracker_api" },
     { name = "issue-tracker-client-impl", git = "https://github.com/yawnka/ospsd-team-03.git?subdirectory=components%2Fissue_tracker_client_impl" },
     { name = "openai-ai-client-impl", editable = "components/openai_ai_client_impl" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
@@ -635,6 +636,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
 ]
+
+[[package]]
+name = "issue-tracker-api"
+version = "0.1.0"
+source = { editable = "components/issue_tracker_api" }
 
 [[package]]
 name = "issue-tracker-client-api"
@@ -1036,6 +1042,11 @@ requires-dist = [
 ]
 
 [[package]]
+name = "ospd-issue-tracker-api"
+version = "0.1.0"
+source = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git?rev=main#63abe1c8607fce7e92a1a68475580fd380e3a1ed" }
+
+[[package]]
 name = "ospsd-calendar-api"
 version = "0.1.0"
 source = { git = "https://github.com/DeMoliT1on/ospsd-calendar-api#e8c7b2a8a78e1fc0aeb6cb7acf8d5e5f050d09b5" }
@@ -1044,6 +1055,9 @@ source = { git = "https://github.com/DeMoliT1on/ospsd-calendar-api#e8c7b2a8a78e1
 name = "ospsd-team-11"
 version = "0.1.0"
 source = { virtual = "." }
+dependencies = [
+    { name = "ospd-issue-tracker-api" },
+]
 
 [package.optional-dependencies]
 dev = [
@@ -1066,6 +1080,7 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.7.3" },
     { name = "mkdocstrings-python", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.17.0" },
+    { name = "ospd-issue-tracker-api", git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git?rev=main" },
     { name = "pymdown-extensions", marker = "extra == 'dev'", specifier = ">=10.16.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.2.1" },

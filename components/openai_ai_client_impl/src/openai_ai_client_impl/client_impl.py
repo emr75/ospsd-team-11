@@ -1,24 +1,22 @@
-"""OpenAI implementation of the AiClient interface."""
+"""OpenAI implementation of the AiClient interface with tool-calling loop."""
+
+from __future__ import annotations
 
 import json
 import os
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import ai_client_api
-from ai_client_api import AiClient, AiResponse, AiToolCall
+from ai_client_api import AiClient
 from openai import OpenAI
 
 
-class OpenAIResponseProtocol(Protocol):
-    """Protocol for the subset of OpenAI response fields used by the parser."""
-
-    output: list[object]
-
-
 class OpenAiClient(AiClient):
-    """Concrete AI client backed by the OpenAI Responses API."""
+    """Concrete AI client backed by OpenAI Chat Completions."""
 
-    # In case gpt-4o-mini is nt available
     DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     def __init__(
@@ -28,151 +26,122 @@ class OpenAiClient(AiClient):
         model: str | None = None,
     ) -> None:
         """Initialize the OpenAI AI client."""
-        self._model = model or os.getenv("OPENAI_MODEL", self.DEFAULT_MODEL)
+        self._model: str = model or os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
         self._client = client or OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     def send_message(
         self,
         prompt: str,
         context: dict[str, Any] | None = None,
-    ) -> AiResponse:
-        """Send a prompt to OpenAI and return parsed tool calls."""
-        system_prompt = _build_system_prompt()
-        user_prompt = _build_user_prompt(prompt=prompt, context=context)
+    ) -> str:
+        """Send a prompt to OpenAI and return a text response."""
+        system_prompt = self._build_system_prompt(context)
 
-        response = self._client.responses.create(  # type: ignore[call-overload]
+        response = self._client.chat.completions.create(
             model=self._model,
-            input=[
+            messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": prompt},
             ],
-            tools=_build_tools(),
-            tool_choice="auto",
         )
 
-        return _parse_response(response)
+        msg = response.choices[0].message
+        return (msg.content or "").strip()
 
+    def run_chat_with_tools(
+        self,
+        *,
+        system_prompt: str,
+        user_message: str,
+        tools: list[dict[str, Any]],
+        handle_tool: Callable[[str, dict[str, Any]], str],
+        max_tool_rounds: int = 8,
+    ) -> str:
+        """Run a multi-turn completion with tool-calling loop."""
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ]
 
-def _build_system_prompt() -> str:
-    return (
-        "You are an assistant for calendar and cross-service workflows. "
-        "Use tool calls whenever an action is required. "
-        "Do not guess or fabricate results. "
-        "Always return valid JSON arguments when calling tools. "
-        "If no tool is needed, return a concise natural language response."
-    )
+        rounds = 0
 
+        while rounds < max_tool_rounds:
+            rounds += 1
 
-def _build_user_prompt(prompt: str, context: dict[str, Any] | None) -> str:
-    if context is None:
-        return prompt
-    context_json = json.dumps(context, default=str)
-    return f"User prompt:\n{prompt}\n\nContext JSON:\n{context_json}"
+            response = self._client.chat.completions.create(
+                model=self._model,
+                messages=messages,
+                tools=tools,
+                tool_choice="auto",
+            )  # type: ignore[call-overload]
+                # OpenAI SDK type stubs do not fully support tools/tool_choice combination
+            msg = response.choices[0].message
 
+            if not msg.tool_calls:
+                return (msg.content or "").strip()
 
-def _build_tools() -> list[dict[str, Any]]:
-    return [
-        {
-            "type": "function",
-            "name": "create_event",
-            "description": "Create a new calendar event.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "title": {"type": "string"},
-                    "start": {"type": "string", "description": "ISO 8601 datetime"},
-                    "end": {"type": "string", "description": "ISO 8601 datetime"},
-                    "description": {"type": "string"},
-                    "location": {"type": ["string", "null"]},
-                },
-                "required": ["title", "start", "end"],
-                "additionalProperties": False,
-            },
-        },
-        {
-            "type": "function",
-            "name": "list_events",
-            "description": "List calendar events within a date range.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "start": {"type": "string", "description": "ISO 8601 datetime"},
-                    "end": {"type": "string", "description": "ISO 8601 datetime"},
-                },
-                "required": ["start", "end"],
-                "additionalProperties": False,
-            },
-        },
-        {
-            "type": "function",
-            "name": "update_event",
-            "description": "Update or reschedule an existing calendar event.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "event_reference": {
-                        "type": "string",
-                        "description": "Human-readable event reference, such as meeting title.",
-                    },
-                    "start_time": {"type": "string", "description": "ISO 8601 datetime"},
-                    "end_time": {"type": "string", "description": "ISO 8601 datetime"},
-                    "title": {"type": "string"},
-                    "description": {"type": "string"},
-                    "location": {"type": ["string", "null"]},
-                },
-                "required": ["event_reference"],
-                "additionalProperties": False,
-            },
-        },
-        {
-            "type": "function",
-            "name": "create_event_from_issue",
-            "description": "Create a calendar event from an issue when the user asks to schedule a meeting related to an issue.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "issue_id": {"type": "string"},
-                    "start": {"type": "string", "description": "ISO 8601 datetime"},
-                    "end": {"type": "string", "description": "ISO 8601 datetime"},
-                },
-                "required": ["issue_id", "start", "end"],
-                "additionalProperties": False,
-            },
-        },
-    ]
-
-
-def _parse_response(response: OpenAIResponseProtocol) -> AiResponse:
-    message_parts: list[str] = []
-    tool_calls: list[AiToolCall] = []
-
-    for item in getattr(response, "output", []):
-        item_type = getattr(item, "type", None)
-
-        if item_type == "message":
-            for content in getattr(item, "content", []):
-                if getattr(content, "type", None) in {"output_text", "text"}:
-                    text = getattr(content, "text", "")
-                    if text:
-                        message_parts.append(text)
-
-        if item_type == "function_call":
-            raw_arguments = getattr(item, "arguments", "{}")
-            try:
-                parsed_arguments = json.loads(raw_arguments)
-            except json.JSONDecodeError:
-                parsed_arguments = {}
-            tool_calls.append(
-                AiToolCall(
-                    tool_name=item.name,
-                    arguments=parsed_arguments,
-                )
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": msg.content,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments,
+                            },
+                        }
+                        for tool_call in msg.tool_calls
+                    ],
+                }
             )
 
-    return AiResponse(
-        message="\n".join(part for part in message_parts if part).strip(),
-        tool_calls=tool_calls,
-    )
+            for tool_call in msg.tool_calls:
+                raw_args = tool_call.function.arguments or "{}"
+
+                try:
+                    args = json.loads(raw_args)
+                except json.JSONDecodeError:
+                    args = {}
+
+                if not isinstance(args, dict):
+                    args = {}
+
+                try:
+                    result = handle_tool(tool_call.function.name, args)
+                except Exception as exc:  # noqa: BLE001
+                    result = json.dumps(
+                        {
+                            "error": str(exc),
+                            "tool": tool_call.function.name,
+                        }
+                    )
+
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": result,
+                    }
+                )
+
+        return "Tool loop limit reached; try a narrower request."
+
+    @staticmethod
+    def _build_system_prompt(context: dict[str, Any] | None = None) -> str:
+        """Build the system prompt for single-turn messages."""
+        base_prompt = (
+            "You are a concise assistant for calendar and cross-service workflows. "
+            "Answer clearly, and do not fabricate results."
+        )
+
+        if not context:
+            return base_prompt
+
+        context_json = json.dumps(context, default=str)
+        return f"{base_prompt}\nContext JSON: {context_json}"
 
 
 def get_openai_client() -> OpenAiClient:
