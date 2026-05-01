@@ -17,63 +17,68 @@ terraform apply -var-file=terraform.tfvars
 
 Use `infra/terraform.tfvars.example` as the template for the real variable file. Do not commit real secrets.
 
-## Telemetry Emitter
+## Telemetry
 
-The FastAPI service exposes Prometheus metrics at:
+The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemetry.io/) SDK and exports **traces**, **metrics**, and **logs** directly to [Grafana Cloud](https://grafana.com/products/cloud/) via OTLP.
 
-```text
-GET /metrics
-```
+### What is collected
 
-The app uses `prometheus-fastapi-instrumentator` in `google_calendar_service.main`, which emits:
+- **Traces** — one span per HTTP request, including route, method, status code, and latency. Provided automatically by `opentelemetry-instrumentation-fastapi`.
+- **Metrics** — custom `http.requests.total` counter (by method, route, status group) and `http.request.duration_seconds` histogram (by route) recorded by `MetricsMiddleware`.
+- **Logs** — Python `logging` output bridged into OTLP and correlated with the active trace.
 
-- `http_request_duration_seconds` for request latency.
-- `http_requests_total` labeled by route, method, and status group for success and failure rates.
+### Dashboard Queries (Grafana Cloud → Explore → Prometheus)
 
-## Local Monitoring Stack
-
-The `monitoring/` directory contains a local Prometheus and Grafana stack for collecting and visualizing the service metrics.
-
-Start it from the repository root:
-
-```bash
-docker compose -f monitoring/docker-compose.yml up --build
-```
-
-Then open:
-
-- Service: `http://localhost:8000`
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3000`
-
-Grafana is provisioned with a Prometheus data source and the `Calendar Service Observability` dashboard.
-
-## Dashboard Queries
-
-Request latency:
+Request latency by route:
 
 ```promql
-sum(rate(http_request_duration_seconds_sum[5m])) by (handler)
-/
-sum(rate(http_request_duration_seconds_count[5m])) by (handler)
+rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])
 ```
 
 Success rate:
 
 ```promql
 100 * sum(rate(http_requests_total{status=~"2xx|3xx"}[5m]))
-/
-sum(rate(http_requests_total[5m]))
+/ sum(rate(http_requests_total[5m]))
 ```
 
 Failure rate:
 
 ```promql
 100 * sum(rate(http_requests_total{status=~"4xx|5xx"}[5m]))
-/
-sum(rate(http_requests_total[5m]))
+/ sum(rate(http_requests_total[5m]))
 ```
 
-## Deployment Note
+### Architecture
 
-For the final demo, the deployed service must remain reachable at `/metrics` so an observability platform can scrape it. For a class demo, the local Prometheus/Grafana stack can be pointed at the deployed service by changing `monitoring/prometheus/prometheus.yml` from `app:8000` to the deployed host.
+```
+FastAPI app  →  Grafana Cloud OTLP endpoint  (traces  → Tempo)
+(any environment)                             (metrics → Prometheus)
+                                              (logs    → Loki)
+```
+
+The app exports directly to Grafana Cloud — no collector sidecar required. If `OTEL_EXPORTER_OTLP_ENDPOINT` is absent the app starts normally with telemetry silently disabled.
+
+## Setup
+
+Add the following standard OTEL env vars to your `.env` (see `.env.example`):
+
+```
+OTEL_SERVICE_NAME=google-calendar-service
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-prod-<region>.grafana.net/otlp
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_RESOURCE_ATTRIBUTES=service.namespace=ospsd-team-11
+OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic%20<your-base64-token>
+```
+
+Find these values in Grafana Cloud → My Account → your stack → OpenTelemetry → "Programmatic setup".
+
+## Local Development
+
+```bash
+docker compose -f monitoring/docker-compose.yml up --build
+```
+
+The app reads `.env` from the repo root, so telemetry works locally as long as the OTEL vars are set. Open the service at `http://localhost:8000`.
+
+Telemetry is visible in Grafana Cloud under **Explore → Tempo** (traces), **Explore → Prometheus** (metrics), and **Explore → Loki** (logs).

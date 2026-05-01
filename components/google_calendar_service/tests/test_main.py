@@ -169,16 +169,8 @@ class TestHealthEndpoint:
 
 
 class TestTelemetryEndpoint:
-    def test_metrics_endpoint_exposes_request_telemetry(self) -> None:
-        client.get("/health")
-
-        response = client.get("/metrics")
-
-        assert response.status_code == HTTP_OK
-        assert "http_requests_total" in response.text
-        assert 'handler="/health"' in response.text
-        assert 'status="2xx"' in response.text
-        assert "http_request_duration_seconds" in response.text
+    def test_opentelemetry_instrumentor_is_active(self) -> None:
+        assert getattr(app, "_is_instrumented_by_opentelemetry", False)
 
 
 class TestListEventsEndpoint:

@@ -23,6 +23,7 @@ COPY components/calendar_client_api/pyproject.toml components/calendar_client_ap
 COPY components/google_calendar_client_impl/pyproject.toml components/google_calendar_client_impl/pyproject.toml
 COPY components/google_calendar_service/pyproject.toml components/google_calendar_service/pyproject.toml
 COPY components/google_calendar_service_adapter/pyproject.toml components/google_calendar_service_adapter/pyproject.toml
+COPY components/issue_tracker_api/pyproject.toml components/issue_tracker_api/pyproject.toml
 COPY components/openai_ai_client_impl/pyproject.toml components/openai_ai_client_impl/pyproject.toml
 
 # Pre-sync third-party runtime dependencies
@@ -34,6 +35,7 @@ COPY components/calendar_client_api components/calendar_client_api
 COPY components/google_calendar_client_impl components/google_calendar_client_impl
 COPY components/google_calendar_service components/google_calendar_service
 COPY components/google_calendar_service_adapter components/google_calendar_service_adapter
+COPY components/issue_tracker_api components/issue_tracker_api
 COPY components/openai_ai_client_impl components/openai_ai_client_impl
 
 # Install workspace packages into the existing environment
