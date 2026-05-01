@@ -31,17 +31,8 @@ from calendar_client_api.exceptions import (
     ValidationError as ValidationError,
 )
 from calendar_client_api.registry import (
-    CredentialsToken as CredentialsToken,
-)
-from calendar_client_api.registry import (
     get_client as get_client,
 )
 from calendar_client_api.registry import (
-    get_client_with_credentials as get_client_with_credentials,
-)
-from calendar_client_api.registry import (
     register_client as register_client,
-)
-from calendar_client_api.registry import (
-    register_client_with_credentials as register_client_with_credentials,
 )

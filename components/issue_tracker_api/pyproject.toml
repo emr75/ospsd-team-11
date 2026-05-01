@@ -1,0 +1,14 @@
+[project]
+name = "issue-tracker-api"
+version = "0.1.0"
+description = "Issue Tracker API interface"
+requires-python = ">=3.13"
+
+dependencies = []
+
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

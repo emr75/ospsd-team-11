@@ -24,6 +24,8 @@ nav:
   - "Overview": "index.md"
   - "Architecture": "component.md"
   - "API Reference":
+      - "AI Client API": "api/ai_client_api.md"
+      - "OpenAI AI Client Implementation": "api/openai_ai_client_impl.md"
       - "Calendar Event API": "api/event_api.md"
       - "Calendar Client API": "api/calendar_client_api.md"
       - "Google Calendar Client Implementation": "api/google_calendar_client_impl.md"
@@ -49,10 +51,12 @@ plugins:
       handlers:
         python:
           paths:
+            - components/ai_client_api/src
             - components/calendar_client_api/src
             - components/google_calendar_client_impl/src
             - components/google_calendar_service/src
             - components/google_calendar_service_adapter/src
+            - components/openai_ai_client_impl/src
           options:
             show_signature_annotations: true
             members_order: source

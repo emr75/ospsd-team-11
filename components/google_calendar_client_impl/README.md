@@ -22,6 +22,14 @@ Concrete implementation of the `calendar_client_api` interface backed by the Goo
 | `GoogleCalendarEvent` | class | Implements `Event`. Wraps Google Calendar API payloads |
 | `get_google_calendar_client()` | function | Factory function that creates a new `GoogleCalendarClient` instance |
 
+## Configuration
+
+| Variable / File | Description |
+|-----------------|-------------|
+| `credentials.json` | OAuth client credentials from Google Cloud |
+| `token.json` | Stored user access/refresh tokens after authentication |
+| Environment Variables | Optional configuration loaded via `.env` (if used) |
+
 ## DI Auto-Registration
 
 On import, the package calls `register_client(get_google_calendar_client)`, so consumers only need:

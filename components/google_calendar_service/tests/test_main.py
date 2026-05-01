@@ -8,8 +8,8 @@ from datetime import UTC, datetime
 import pytest
 from calendar_client_api.event import Attendee, Event, EventCreate, EventUpdate
 from fastapi.testclient import TestClient
+from google_calendar_service import deps
 from google_calendar_service.main import app
-from google_calendar_service.routes import event_routes
 
 HTTP_OK = 200
 DEFAULT_MAX_RESULTS = 10
@@ -20,9 +20,9 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def override_get_client_dependency() -> Iterator[None]:
     """Override the events router _get_client dependency with a fake client."""
-    app.dependency_overrides[event_routes._get_client] = fake_get_client
+    app.dependency_overrides[deps.get_calendar_client] = fake_get_client
     yield
-    app.dependency_overrides.pop(event_routes._get_client, None)
+    app.dependency_overrides.pop(deps.get_calendar_client, None)
 
 
 @dataclass(frozen=True)

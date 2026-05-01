@@ -2,12 +2,13 @@
 
 ## Purpose
 
-This project implements a Calendar Client. The interface defines a contract for calendar operations (creating, reading, updating, and deleting events), while the concrete implementation targets Google Calendar via its API, and an initial FastAPI service layer that exposes calendar functionality over HTTP.
+This project implements a Calendar Client. The interface defines a contract for calendar operations (creating, reading, updating, and deleting events), while the concrete implementation targets Google Calendar via its API, and an initial FastAPI service layer that exposes calendar functionality over HTTP. The system also includes an AI client layer that enables structured interaction with language models, including tool-calling support for cross-service workflows.
 
 You can use the same application-facing API in two ways:
 
 1. **Direct implementation**: call Google Calendar directly (`google_calendar_client_impl`)
 2. **Service adapter**: call a deployed FastAPI service (`google_calendar_service_adapter` + `google_calendar_service_api_client`)
+3. **AI Client**: Provides a unified interface (`ai_client_api`) for interacting with AI models, with a concrete OpenAI implementation (`openai_ai_client_impl`)
 
 This keeps business logic decoupled from transport and provider details.
 
@@ -17,10 +18,11 @@ This keeps business logic decoupled from transport and provider details.
 
 This project follows a **ports/adapters architecture**:
 
-- **Port (core contract)**: `calendar_client_api`
+- **Ports (core contract)**: `calendar_client_api`, `ai_client_api`
 - **Adapters**:
   - `google_calendar_client_impl` (direct Google API adapter)
   - `google_calendar_service_adapter` (HTTP adapter through deployed service)
+  - `openai_ai_client_impl` (OpenAI-backed AI client adapter)
 - **FastAPI Service**: `google_calendar_service` (FastAPI app)
 - **Generated API Client**: `google_calendar_service_api_client`
 
@@ -31,11 +33,13 @@ This project follows a **ports/adapters architecture**:
 ```text
 .
 ├── components/
+│   ├── ai_client_api/                      # AI client interface (port)
 │   ├── calendar_client_api/                # Port: interfaces, DTOs, registry, domain exceptions
 │   ├── google_calendar_client_impl/        # Direct Google adapter
 │   ├── google_calendar_service/            # FastAPI deployment/service boundary
 │   ├── google_calendar_service_api_client/ # Generated typed HTTP client
-│   └── google_calendar_service_adapter/    # CalendarClient adapter over HTTP service
+│   ├── google_calendar_service_adapter/    # CalendarClient adapter over HTTP service
+│   └── openai_ai_client_impl/              # OpenAI AI adapter
 ├── tests/                                  # Integration + e2e tests
 ├── docs/                                   # MkDocs source
 ├── Dockerfile                              # uv-based multi-stage image
@@ -179,6 +183,18 @@ Other optional OAuth/session settings:
 - `GOOGLE_CALENDAR_SESSION_IDENTIFIER`
 - `GOOGLE_CALENDAR_SESSION_SECRET`
 - `GOOGLE_CALENDAR_SESSION_COOKIE_SECURE`
+
+### AI Client (`openai_ai_client_impl`)
+
+Used when your application imports `openai_ai_client_impl` and calls `get_client()`.
+
+Required environment variables:
+- `OPENAI_API_KEY`
+
+Optional:
+- `OPENAI_MODEL` (overrides the default model)
+
+No OAuth flow is required. Authentication is handled via API key.
 
 ---
 
