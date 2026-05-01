@@ -20,6 +20,18 @@ locals {
     CALENDAR_COOKIE_VALUE                       = var.calendar_cookie_value
     CALENDAR_SERVICE_BASE_URL                   = var.calendar_service_base_url
     DEFAULT_CALENDAR_ID                         = var.default_calendar_id
+
+    OPENAI_API_KEY = var.openai_api_key
+
+    TRELLO_API_KEY   = var.trello_api_key
+    TRELLO_API_TOKEN = var.trello_api_token
+    TRELLO_BOARD_ID  = var.trello_board_id
+
+    OTEL_SERVICE_NAME           = var.otel_service_name
+    OTEL_EXPORTER_OTLP_ENDPOINT = var.otel_exporter_otlp_endpoint
+    OTEL_EXPORTER_OTLP_PROTOCOL = var.otel_exporter_otlp_protocol
+    OTEL_RESOURCE_ATTRIBUTES    = var.otel_resource_attributes
+    OTEL_EXPORTER_OTLP_HEADERS  = var.otel_exporter_otlp_headers
   }
 }
 
