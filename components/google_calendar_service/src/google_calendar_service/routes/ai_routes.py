@@ -1,16 +1,11 @@
 """AI routes for handling assistant interactions."""
 
-from __future__ import annotations
-
 import logging
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import Annotated, cast
 
-if TYPE_CHECKING:
-    from ai_client_api import AiClient
-    from ospsd_calendar_api import CalendarClient
-
-from fastapi import APIRouter, HTTPException, status
-from fastapi.params import Depends
+from ai_client_api import AiClient
+from calendar_client_api import CalendarClient
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from google_calendar_service.deps import get_ai_client, get_calendar_client
 from google_calendar_service.integrations.agent import CalendarClientProtocol, run_ai_turn
@@ -29,13 +24,13 @@ def handle_ai(
 ) -> AiResponseModel:
     """Handle an AI prompt through the AI orchestration flow."""
     try:
-        calendar_client = cast("CalendarClientProtocol", calendar_client)
+        cast_calendar_client = cast("CalendarClientProtocol", calendar_client)
 
         answer = run_ai_turn(
             prompt=request.prompt,
             context=request.context,
             ai_client=ai_client,
-            calendar_client=calendar_client,
+            calendar_client=cast_calendar_client,
         )
     except ValueError as exc:
         raise HTTPException(

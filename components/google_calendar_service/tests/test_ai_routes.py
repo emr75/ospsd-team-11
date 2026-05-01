@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from google_calendar_service.deps import get_ai_client, get_calendar_client
 from google_calendar_service.main import app
-from google_calendar_service.routes import ai_routes
 
 HTTP_OK = 200
 client = TestClient(app)
@@ -37,8 +37,8 @@ class TestAiRoutes:
 
     def test_handle_ai_returns_message(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Ensure the route returns the final AI response."""
-        monkeypatch.setattr(ai_routes, "get_ai_client", FakeAiClient)
-        monkeypatch.setattr(ai_routes, "get_calendar_client", object)
+        app.dependency_overrides[get_ai_client] = FakeAiClient
+        app.dependency_overrides[get_calendar_client] = object
 
         response = client.post("/ai/", json={"prompt": "What can you do?"})
 
