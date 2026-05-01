@@ -27,6 +27,9 @@ It also exposes AI-powered routes for processing natural language requests and m
 | `fastapi-sessions` | Cookie-based session frontend/backend utilities |
 | `httpx` | Outbound HTTP calls (OAuth token exchange) |
 | `openai-ai-client-impl` | OpenAI-backed AI client used for AI routes |
+| `opentelemetry-sdk` | OpenTelemetry SDK for traces, metrics, and logs |
+| `opentelemetry-instrumentation-fastapi` | Auto-instrumentation for FastAPI request spans |
+| `opentelemetry-exporter-otlp-proto-http` | OTLP/HTTP exporters for traces, metrics, and logs |
 | `uvicorn` | ASGI server runtime |
 | `python-dotenv` | Environment loading |
 
@@ -41,6 +44,7 @@ It also exposes AI-powered routes for processing natural language requests and m
 | `models.py` | Request/response DTOs and conversion helpers |
 | `oauth_utils.py` | PKCE/state generation and OAuth token exchange |
 | `session_store.py` | Session cookie frontend, backend, verifier, token/state helpers |
+| `otel.py` | OpenTelemetry provider setup (traces, metrics, logs) and `MetricsMiddleware` for per-request HTTP metrics |
 | `routes/ai_routes.py` | `/ai` endpoints for processing natural language requests and returning structured responses |
 | `routes/auth_routes.py` | `/auth/login`, `/auth/callback`, `/auth/logout` |
 | `routes/event_routes.py` | `/events` CRUD endpoints with authenticated session dependency |
@@ -86,6 +90,18 @@ All event routes depend on a valid authenticated session with non-expired OAuth 
   ```
 - `POST /ai/` — Accepts a natural language prompt and optional context, forwards it to the AI client, and returns a structured response including message text and any tool calls
 
+### Telemetry
+
+The service emits OpenTelemetry **traces, metrics, and logs** over OTLP/HTTP. There is no scrape endpoint; signals are pushed to the configured OTLP collector backend.
+
+- **Traces**: FastAPI requests are auto-instrumented via `FastAPIInstrumentor`, producing one span per request plus a `service.startup` span at boot.
+- **Metrics** (recorded by `MetricsMiddleware` and exported on a periodic interval):
+  - `http.requests.total` — counter of HTTP requests, labeled with `method`, `route`, and `status` (e.g. `2xx`, `5xx`).
+  - `http.request.duration_seconds` — histogram of request latency in seconds, with the same labels.
+- **Logs**: Python logging is bridged to OTLP via `LoggingHandler`, so application logs are exported alongside traces and metrics.
+
+Telemetry is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` is not set.
+
 ---
 
 ## Configuration
@@ -116,6 +132,15 @@ Common variables:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (optional)
+
+### Telemetry (OpenTelemetry)
+
+All variables are optional. If `OTEL_EXPORTER_OTLP_ENDPOINT` is unset, the service starts normally with telemetry disabled.
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT` — OTLP/HTTP collector base URL (e.g. `https://otlp.example.com`)
+- `OTEL_EXPORTER_OTLP_HEADERS` — Authorization headers (e.g. `Authorization=Bearer …`) for the collector
+- `OTEL_SERVICE_NAME` — Service name attached to all signals (defaults via OTel resource detection)
+- Any other standard `OTEL_*` env vars accepted by the OpenTelemetry SDK
 
 ---
 

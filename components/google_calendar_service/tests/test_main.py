@@ -168,6 +168,11 @@ class TestHealthEndpoint:
         assert response.json() == {"status": "ok"}
 
 
+class TestTelemetryEndpoint:
+    def test_opentelemetry_instrumentor_is_active(self) -> None:
+        assert getattr(app, "_is_instrumented_by_opentelemetry", False)
+
+
 class TestListEventsEndpoint:
     def test_returns_serialized_events(self) -> None:
         response = client.get("/events/")
