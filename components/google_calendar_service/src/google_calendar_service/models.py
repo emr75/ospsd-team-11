@@ -108,7 +108,6 @@ class AiResponseModel(BaseModel):
     """Serialized AI response returned by the route."""
 
     message: str
-    result: object | None = None
 
 
 def to_attendee_response(attendee: Attendee) -> AttendeeResponse:

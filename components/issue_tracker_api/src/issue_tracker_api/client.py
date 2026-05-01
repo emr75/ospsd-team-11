@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
 class IssueTrackerError(Exception):
@@ -20,7 +20,7 @@ class BoardError(IssueTrackerError):
     """Exception raised for board-related failures."""
 
 
-class Status(str, Enum):
+class Status(StrEnum):
     """Supported issue status values."""
 
     TO_DO = "to_do"
@@ -78,7 +78,7 @@ class Client(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update_issue( # noqa: PLR0913
+    def update_issue(  # noqa: PLR0913
         self,
         issue_id: str,
         title: str | None = None,
@@ -111,7 +111,7 @@ class Client(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def create_issue( # noqa: PLR0913
+    def create_issue(  # noqa: PLR0913
         self,
         title: str,
         board_id: str,

@@ -3,12 +3,13 @@
 import logging
 import os
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import ClassVar
 
 import calendar_client_api
-from calendar_client_api import Attendee, CalendarClient, CredentialsToken, Event, EventCreate, EventUpdate
+from calendar_client_api import Attendee, CalendarClient, Event, EventCreate, EventUpdate
 from calendar_client_api.event import UNSET
 from google.auth.exceptions import GoogleAuthError, RefreshError
 from google.auth.transport.requests import Request
@@ -383,8 +384,20 @@ def get_google_calendar_client() -> GoogleCalendarClient:
     return GoogleCalendarClient()
 
 
+@dataclass(frozen=True)
+class CredentialsToken:
+    """Structured representation of OAuth credentials for token-based auth."""
+
+    client_id: str
+    client_secret: str
+    token_uri: str
+    scopes: list[str]
+    access_token: str
+    refresh_token: str | None = None
+
+
 def get_calendar_client_with_credentials(creds_token: CredentialsToken) -> GoogleCalendarClient:
-    """Get a Google Calendar client using provided credentials token."""
+    """Get a Google Calendar client using the provided credentials token."""
     creds = Credentials(  # type: ignore[no-untyped-call] # google-auth Credentials.__init__() is untyped
         token=creds_token.access_token,
         refresh_token=creds_token.refresh_token,
@@ -401,4 +414,3 @@ def get_calendar_client_with_credentials(creds_token: CredentialsToken) -> Googl
 def register_google_calendar_client() -> None:
     """Register a Google Calendar client."""
     calendar_client_api.register_client(get_google_calendar_client)
-    calendar_client_api.register_client_with_credentials(get_calendar_client_with_credentials)

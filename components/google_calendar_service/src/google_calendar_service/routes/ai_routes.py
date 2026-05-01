@@ -3,39 +3,33 @@
 from __future__ import annotations
 
 import logging
-from typing import cast
+from typing import TYPE_CHECKING, Annotated, cast
 
-from ai_client_api import get_client as get_ai_client
-from calendar_client_api import get_client as get_calendar_client
+if TYPE_CHECKING:
+    from ai_client_api import AiClient
+    from ospsd_calendar_api import CalendarClient
+
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from fastapi.params import Depends
 
-from google_calendar_service.agent import CalendarClientProtocol, run_ai_turn
+from google_calendar_service.deps import get_ai_client, get_calendar_client
+from google_calendar_service.integrations.agent import CalendarClientProtocol, run_ai_turn
+from google_calendar_service.models import AiRequest, AiResponseModel
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 
-class AiRequest(BaseModel):
-    """Incoming AI request payload."""
-
-    prompt: str
-    context: dict[str, object] | None = None
-
-
-class AiResponseModel(BaseModel):
-    """Serialized AI response returned by the route."""
-
-    message: str
-
-
 @router.post("/")
-def handle_ai(request: AiRequest) -> AiResponseModel:
+def handle_ai(
+    request: AiRequest,
+    ai_client: Annotated[AiClient, Depends(get_ai_client)],
+    calendar_client: Annotated[CalendarClient, Depends(get_calendar_client)],
+) -> AiResponseModel:
     """Handle an AI prompt through the AI orchestration flow."""
     try:
-        ai_client = get_ai_client()
-        calendar_client = cast("CalendarClientProtocol", get_calendar_client())
+        calendar_client = cast("CalendarClientProtocol", calendar_client)
 
         answer = run_ai_turn(
             prompt=request.prompt,

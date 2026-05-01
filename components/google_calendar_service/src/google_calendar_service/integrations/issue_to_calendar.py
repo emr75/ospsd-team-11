@@ -77,4 +77,3 @@ def create_event_from_issue_flow(
         "event_title": event.title,
         "status": "created",
     }
-

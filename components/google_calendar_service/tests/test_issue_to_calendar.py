@@ -27,7 +27,7 @@ class FakeIssueClient:
                 id=123,
                 title="Broken auth redirect",
                 desc="Investigate redirect_uri mismatch in OAuth callback flow.",
-                status="open"
+                status="open",
             ),
         )
 

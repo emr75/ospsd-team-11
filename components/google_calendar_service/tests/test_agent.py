@@ -3,7 +3,7 @@
 from typing import Any, cast
 
 import pytest
-from google_calendar_service import agent
+from google_calendar_service.integrations import agent
 
 
 class FakeAiClient:

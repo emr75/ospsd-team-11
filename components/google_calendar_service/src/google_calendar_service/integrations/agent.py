@@ -119,8 +119,7 @@ TOOLS: list[ToolDefinition] = [
         "function": {
             "name": "create_event_from_issue",
             "description": (
-                "Create a calendar event from an issue when the user asks to "
-                "schedule a meeting related to an issue."
+                "Create a calendar event from an issue when the user asks to schedule a meeting related to an issue."
             ),
             "parameters": {
                 "type": "object",
@@ -304,11 +303,7 @@ def _resolve_event_id(
             title = getattr(event, "title", None)
             event_id = getattr(event, "id", None)
 
-        if (
-            isinstance(title, str)
-            and isinstance(event_id, str)
-            and title.strip().lower() == normalized_reference
-        ):
+        if isinstance(title, str) and isinstance(event_id, str) and title.strip().lower() == normalized_reference:
             return event_id
 
     return None

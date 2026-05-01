@@ -74,7 +74,7 @@ class OpenAiClient(AiClient):
                 tools=tools,
                 tool_choice="auto",
             )  # type: ignore[call-overload]
-                # OpenAI SDK type stubs do not fully support tools/tool_choice combination
+            # OpenAI SDK type stubs do not fully support tools/tool_choice combination
             msg = response.choices[0].message
 
             if not msg.tool_calls:
@@ -133,8 +133,7 @@ class OpenAiClient(AiClient):
     def _build_system_prompt(context: dict[str, Any] | None = None) -> str:
         """Build the system prompt for single-turn messages."""
         base_prompt = (
-            "You are a concise assistant for calendar and cross-service workflows. "
-            "Answer clearly, and do not fabricate results."
+            "You are a concise assistant for calendar and cross-service workflows. Answer clearly, and do not fabricate results."
         )
 
         if not context:
