@@ -3,25 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Protocol, cast
+from typing import TYPE_CHECKING, Any
 
-from calendar_client_api import get_client as get_calendar_client
-from issue_tracker_api.client import Issue
-from issue_tracker_api.client import get_client as get_issue_client
+if TYPE_CHECKING:
+    from api.issue import Issue  # type: ignore[import-untyped]
 
-
-class CreatedEventProtocol(Protocol):
-    """Protocol for calendar events returned by create_event."""
-
-    id: str
-    title: str
-
-
-class CalendarCreateEventProtocol(Protocol):
-    """Protocol for calendar event creation used by this integration."""
-
-    def create_event(self, **kwargs: object) -> CreatedEventProtocol:
-        """Create a calendar event."""
+    from google_calendar_service.integrations.protocol import CalendarCreateEventProtocol, IssueClientProtocol
 
 
 def build_event_payload_from_issue(
@@ -53,11 +40,10 @@ def create_event_from_issue_flow(
     issue_id: str,
     start: str,
     end: str,
+    issue_client: IssueClientProtocol,
+    calendar_client: CalendarCreateEventProtocol,
 ) -> dict[str, Any]:
     """Create a calendar event using details from an issue."""
-    issue_client = get_issue_client()
-    calendar_client = cast("CalendarCreateEventProtocol", get_calendar_client())
-
     issue = issue_client.get_issue(issue_id)
     event_payload = build_event_payload_from_issue(issue, start, end)
 

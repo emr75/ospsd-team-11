@@ -6,46 +6,25 @@ import json
 import logging
 from collections.abc import Callable, Mapping
 from datetime import datetime
-from typing import Protocol
+from typing import TYPE_CHECKING, cast
 
 from google_calendar_service.integrations.issue_to_calendar import (
     create_event_from_issue_flow,
 )
+
+if TYPE_CHECKING:
+    from google_calendar_service.integrations.protocol import (
+        AiClientProtocol,
+        CalendarClientProtocol,
+        CalendarCreateEventProtocol,
+        IssueClientProtocol,
+    )
 
 logger = logging.getLogger(__name__)
 
 ToolDefinition = dict[str, object]
 ToolArguments = dict[str, object]
 ToolHandler = Callable[[str, ToolArguments], str]
-
-
-class AiClientProtocol(Protocol):
-    """Protocol for AI clients used by orchestration."""
-
-    def run_chat_with_tools(
-        self,
-        *,
-        system_prompt: str,
-        user_message: str,
-        tools: list[ToolDefinition],
-        handle_tool: ToolHandler,
-        max_tool_rounds: int = 8,
-    ) -> str:
-        """Run a chat completion loop with tool support."""
-
-
-class CalendarClientProtocol(Protocol):
-    """Protocol for calendar client methods used by AI orchestration."""
-
-    def list_events(self, **kwargs: object) -> list[object]:
-        """Return calendar events."""
-
-    def create_event(self, **kwargs: object) -> object:
-        """Create calendar event."""
-
-    def update_event(self, **kwargs: object) -> object:
-        """Update calendar event."""
-
 
 SYSTEM_PROMPT = (
     "You are an assistant for calendar and cross-service workflows. "
@@ -142,6 +121,7 @@ def run_ai_turn(
     context: dict[str, object] | None,
     ai_client: AiClientProtocol,
     calendar_client: CalendarClientProtocol,
+    issue_client: IssueClientProtocol,
 ) -> str:
     """Run one AI conversation turn with calendar and issue tools."""
     user_message = _build_user_message(prompt=prompt, context=context)
@@ -150,7 +130,7 @@ def run_ai_turn(
         system_prompt=SYSTEM_PROMPT,
         user_message=user_message,
         tools=TOOLS,
-        handle_tool=_make_tool_handler(calendar_client),
+        handle_tool=_make_tool_handler(calendar_client, issue_client),
     )
 
 
@@ -166,7 +146,10 @@ def _build_user_message(
     return f"{prompt}\n\nContext JSON:\n{json.dumps(context, default=str)}"
 
 
-def _make_tool_handler(calendar_client: CalendarClientProtocol) -> ToolHandler:
+def _make_tool_handler(
+    calendar_client: CalendarClientProtocol,
+    issue_client: IssueClientProtocol,
+) -> ToolHandler:
     """Create a tool handler bound to service clients."""
 
     def handle_tool(name: str, arguments: ToolArguments) -> str:
@@ -175,6 +158,7 @@ def _make_tool_handler(calendar_client: CalendarClientProtocol) -> ToolHandler:
                 name=name,
                 arguments=arguments,
                 calendar_client=calendar_client,
+                issue_client=issue_client,
             )
             return json.dumps(result, default=str)
         except (TypeError, ValueError) as exc:
@@ -191,6 +175,7 @@ def _dispatch_tool(
     name: str,
     arguments: ToolArguments,
     calendar_client: CalendarClientProtocol,
+    issue_client: IssueClientProtocol,
 ) -> object:
     """Dispatch an AI-requested tool call to the correct service action."""
     if name == "create_event":
@@ -203,7 +188,7 @@ def _dispatch_tool(
         return _handle_update_event(calendar_client, arguments)
 
     if name == "create_event_from_issue":
-        return _handle_create_event_from_issue(arguments)
+        return _handle_create_event_from_issue(arguments, issue_client, calendar_client)
 
     message = f"Unknown tool: {name}"
     raise ValueError(message)
@@ -228,7 +213,11 @@ def _handle_create_event(
     return calendar_client.create_event(**create_args)
 
 
-def _handle_create_event_from_issue(arguments: Mapping[str, object]) -> object:
+def _handle_create_event_from_issue(
+    arguments: Mapping[str, object],
+    issue_client: IssueClientProtocol,
+    calendar_client: CalendarClientProtocol,
+) -> object:
     """Create a calendar event from an issue."""
     issue_id = arguments.get("issue_id")
     start = arguments.get("start")
@@ -250,6 +239,8 @@ def _handle_create_event_from_issue(arguments: Mapping[str, object]) -> object:
         issue_id=issue_id,
         start=start,
         end=end,
+        issue_client=issue_client,
+        calendar_client=cast("CalendarCreateEventProtocol", calendar_client),
     )
 
 

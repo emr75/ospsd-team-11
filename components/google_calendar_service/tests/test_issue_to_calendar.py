@@ -1,12 +1,15 @@
 """Tests for issue-to-calendar integration flow."""
 
+from __future__ import annotations
+
 from datetime import datetime
 from types import SimpleNamespace
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
-import pytest
 from google_calendar_service.integrations import issue_to_calendar
-from issue_tracker_api.client import Issue
+
+if TYPE_CHECKING:
+    from api.issue import Issue  # type: ignore[import-untyped]
 
 ISSUE_ID = "123"
 
@@ -39,7 +42,7 @@ class FakeCalendarClient:
         """Initialize recorded calendar create calls."""
         self.create_event_calls: list[dict[str, object]] = []
 
-    def create_event(self, **kwargs: object) -> object:
+    def create_event(self, **kwargs: Any) -> Any:
         """Record event creation and return a mock event."""
         self.create_event_calls.append(kwargs)
         return SimpleNamespace(
@@ -77,28 +80,17 @@ def test_build_event_payload_from_issue_includes_issue_fields() -> None:
     assert "Status: open" in description
 
 
-def test_create_event_from_issue_flow_fetches_issue_and_creates_calendar_event(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_create_event_from_issue_flow_fetches_issue_and_creates_calendar_event() -> None:
     """Verify full flow: issue is fetched and event is created with correct payload."""
     fake_issue_client = FakeIssueClient()
     fake_calendar_client = FakeCalendarClient()
-
-    monkeypatch.setattr(
-        issue_to_calendar,
-        "get_issue_client",
-        lambda: fake_issue_client,
-    )
-    monkeypatch.setattr(
-        issue_to_calendar,
-        "get_calendar_client",
-        lambda: fake_calendar_client,
-    )
 
     result = issue_to_calendar.create_event_from_issue_flow(
         issue_id=ISSUE_ID,
         start="2026-04-23T15:00:00-04:00",
         end="2026-04-23T16:00:00-04:00",
+        issue_client=fake_issue_client,
+        calendar_client=fake_calendar_client,
     )
 
     assert fake_issue_client.requested_issue_id == ISSUE_ID

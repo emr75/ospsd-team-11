@@ -27,8 +27,8 @@ It also exposes AI-powered routes for processing natural language requests and m
 | `fastapi-sessions` | Cookie-based session frontend/backend utilities |
 | `httpx` | Outbound HTTP calls (OAuth token exchange) |
 | `openai-ai-client-impl` | OpenAI-backed AI client used for AI routes |
-| `issue-tracker-api` | Abstract interface for issue tracker integration |
-| `issue-tracker-client-impl` | Trello-backed issue tracker client |
+| `ospd-issue-tracker-api` | Shared vertical ABC for issue tracker integration ([repo](https://github.com/tatyanacthomas/ospd_issue_tracker)) |
+| `issue-tracker-client-adapter` | Team 3's service adapter implementing the shared issue-tracker ABC ([repo](https://github.com/yawnka/ospsd-team-03), `hw-3` branch) |
 | `opentelemetry-sdk` | OpenTelemetry SDK for traces, metrics, and logs |
 | `opentelemetry-instrumentation-fastapi` | Auto-instrumentation for FastAPI request spans |
 | `opentelemetry-exporter-otlp-proto-http` | OTLP/HTTP exporters for traces, metrics, and logs |
@@ -136,6 +136,11 @@ Common variables:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (optional)
+
+### Issue Tracker (Team 3 cross-vertical integration)
+
+- `ISSUE_TRACKER_SERVICE_URL` — Base URL of Team 3's deployed issue tracker service (e.g. `https://ospsd-team-03.onrender.com`)
+- `ISSUE_TRACKER_SESSION_ID` (optional) — Session cookie value for authenticated requests
 
 ### Telemetry (OpenTelemetry)
 
