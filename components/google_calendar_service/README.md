@@ -27,6 +27,8 @@ It also exposes AI-powered routes for processing natural language requests and m
 | `fastapi-sessions` | Cookie-based session frontend/backend utilities |
 | `httpx` | Outbound HTTP calls (OAuth token exchange) |
 | `openai-ai-client-impl` | OpenAI-backed AI client used for AI routes |
+| `issue-tracker-api` | Abstract interface for issue tracker integration |
+| `issue-tracker-client-impl` | Trello-backed issue tracker client |
 | `opentelemetry-sdk` | OpenTelemetry SDK for traces, metrics, and logs |
 | `opentelemetry-instrumentation-fastapi` | Auto-instrumentation for FastAPI request spans |
 | `opentelemetry-exporter-otlp-proto-http` | OTLP/HTTP exporters for traces, metrics, and logs |
@@ -40,6 +42,7 @@ It also exposes AI-powered routes for processing natural language requests and m
 | Module | Responsibility |
 |--------|----------------|
 | `main.py` | Creates the FastAPI app and registers routers |
+| `deps.py` | FastAPI dependency providers (e.g. `get_calendar_client`) |
 | `settings.py` | Loads and validates OAuth/session configuration from environment |
 | `models.py` | Request/response DTOs and conversion helpers |
 | `oauth_utils.py` | PKCE/state generation and OAuth token exchange |
@@ -88,6 +91,9 @@ All event routes depend on a valid authenticated session with non-expired OAuth 
   ```json
   {"status": "deleted"}
   ```
+
+### AI
+
 - `POST /ai/` — Accepts a natural language prompt and optional context, forwards it to the AI client, and returns a structured response including message text and any tool calls
 
 ### Telemetry
@@ -136,7 +142,7 @@ Common variables:
 All variables are optional. If `OTEL_EXPORTER_OTLP_ENDPOINT` is unset, the service starts normally with telemetry disabled.
 
 - `OTEL_EXPORTER_OTLP_ENDPOINT` — OTLP/HTTP collector base URL (e.g. `https://otlp.example.com`)
-- `OTEL_EXPORTER_OTLP_HEADERS` — Authorization headers (e.g. `Authorization=Bearer …`) for the collector
+- `OTEL_EXPORTER_OTLP_HEADERS` — Authorization header (e.g. `Authorization=Basic%20<token>`)
 - `OTEL_SERVICE_NAME` — Service name attached to all signals (defaults via OTel resource detection)
 - Any other standard `OTEL_*` env vars accepted by the OpenTelemetry SDK
 
@@ -162,6 +168,9 @@ Component tests are in:
 - `components/google_calendar_service/tests/test_main.py`
 - `components/google_calendar_service/tests/test_oauth.py`
 - `components/google_calendar_service/tests/test_session_store.py`
+- `components/google_calendar_service/tests/test_agent.py`
+- `components/google_calendar_service/tests/test_ai_routes.py`
+- `components/google_calendar_service/tests/test_issue_to_calendar.py`
 
 Run:
 

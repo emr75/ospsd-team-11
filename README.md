@@ -4,7 +4,7 @@
 
 This project implements a Calendar Client. The interface defines a contract for calendar operations (creating, reading, updating, and deleting events), while the concrete implementation targets Google Calendar via its API, and an initial FastAPI service layer that exposes calendar functionality over HTTP. The system also includes an AI client layer that enables structured interaction with language models, including tool-calling support for cross-service workflows.
 
-You can use the same application-facing API in two ways:
+You can use the same application-facing API in three ways:
 
 1. **Direct implementation**: call Google Calendar directly (`google_calendar_client_impl`)
 2. **Service adapter**: call a deployed FastAPI service (`google_calendar_service_adapter` + `google_calendar_service_api_client`)
@@ -25,7 +25,7 @@ This project follows a **ports/adapters architecture**:
   - `openai_ai_client_impl` (OpenAI-backed AI client adapter)
 - **FastAPI Service**: `google_calendar_service` (FastAPI app)
 - **Generated API Client**: `google_calendar_service_api_client`
-- **Telemetry**: Prometheus metrics exposed from `google_calendar_service` at `/metrics`
+- **Telemetry**: OpenTelemetry traces, metrics, and logs exported to Grafana Cloud via OTLP
 
 ---
 
@@ -44,7 +44,6 @@ This project follows a **ports/adapters architecture**:
 ├── tests/                                  # Integration + e2e tests
 ├── docs/                                   # MkDocs source
 ├── infra/                                  # Terraform-managed Render deployment
-├── monitoring/                             # Prometheus and Grafana observability stack
 ├── Dockerfile                              # uv-based multi-stage image
 ├── pyproject.toml                          # uv workspace config
 └── uv.lock                                 # locked dependency graph
@@ -141,25 +140,13 @@ uv run pytest tests/integration/test_client_integration.py -v
 
 ## Telemetry
 
-The FastAPI service exposes Prometheus-compatible metrics at:
+The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemetry.io/) SDK and exports **traces, metrics, and logs** directly to [Grafana Cloud](https://grafana.com/products/cloud/) via OTLP. Metric names follow the [HTTP Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/http/http-metrics/).
 
-```bash
-GET /metrics
-```
+- Request latency and total counts from the `http.server.request.duration` histogram.
+- Success rate from requests with `http.response.status_code` in 2xx.
+- Failure rate from requests with `http.response.status_code` in 4xx/5xx.
 
-The endpoint includes request latency histograms (`http_request_duration_seconds`) and request counters grouped by status (`http_requests_total`). A Prometheus/Grafana dashboard can derive:
-
-- Request latency from `http_request_duration_seconds`.
-- Success rate from 2xx `http_requests_total` samples.
-- Failure rate from 4xx/5xx `http_requests_total` samples.
-
-Run the local monitoring stack:
-
-```bash
-docker compose -f monitoring/docker-compose.yml up --build
-```
-
-Then open Grafana at `http://localhost:3000` and use the preloaded `Calendar Service Observability` dashboard. Terraform deployment details are in `infra/`, and the HW3 IaC/telemetry notes are documented in `docs/telemetry.md`.
+Telemetry is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. See `docs/telemetry.md` for setup instructions and PromQL queries.
 
 ### Linting and formatting
 
@@ -244,6 +231,7 @@ Service base URL (local): `http://127.0.0.1:8000`
 - `POST /events/`
 - `PATCH /events/{event_id}`
 - `DELETE /events/{event_id}`
+- `POST /ai/`
 
 ---
 
