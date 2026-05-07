@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from starlette.responses import RedirectResponse
 
-from google_calendar_service.otel import MetricsMiddleware, configure_opentelemetry
+from google_calendar_service.otel import configure_opentelemetry
 from google_calendar_service.routes.ai_routes import router as ai_router
 from google_calendar_service.routes.auth_routes import router as auth_router
 from google_calendar_service.routes.event_routes import router as event_router
@@ -24,7 +24,6 @@ app = FastAPI(
 )
 
 FastAPIInstrumentor.instrument_app(app)
-app.add_middleware(MetricsMiddleware)
 
 
 @app.get("/")

@@ -44,7 +44,7 @@ It also exposes AI-powered routes for processing natural language requests and m
 | `models.py` | Request/response DTOs and conversion helpers |
 | `oauth_utils.py` | PKCE/state generation and OAuth token exchange |
 | `session_store.py` | Session cookie frontend, backend, verifier, token/state helpers |
-| `otel.py` | OpenTelemetry provider setup (traces, metrics, logs) and `MetricsMiddleware` for per-request HTTP metrics |
+| `otel.py` | OpenTelemetry provider setup (traces, metrics, logs) |
 | `routes/ai_routes.py` | `/ai` endpoints for processing natural language requests and returning structured responses |
 | `routes/auth_routes.py` | `/auth/login`, `/auth/callback`, `/auth/logout` |
 | `routes/event_routes.py` | `/events` CRUD endpoints with authenticated session dependency |
@@ -95,9 +95,7 @@ All event routes depend on a valid authenticated session with non-expired OAuth 
 The service emits OpenTelemetry **traces, metrics, and logs** over OTLP/HTTP. There is no scrape endpoint; signals are pushed to the configured OTLP collector backend.
 
 - **Traces**: FastAPI requests are auto-instrumented via `FastAPIInstrumentor`, producing one span per request plus a `service.startup` span at boot.
-- **Metrics** (recorded by `MetricsMiddleware` and exported on a periodic interval):
-  - `http.requests.total` — counter of HTTP requests, labeled with `method`, `route`, and `status` (e.g. `2xx`, `5xx`).
-  - `http.request.duration_seconds` — histogram of request latency in seconds, with the same labels.
+- **Metrics**: `http.server.request.duration` histogram (unit: seconds) with attributes `http.request.method`, `http.response.status_code`, `http.route`, and `url.scheme`, following the [OpenTelemetry HTTP Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/http/http-metrics/). Total request counts are derived from the histogram's implicit count.
 - **Logs**: Python logging is bridged to OTLP via `LoggingHandler`, so application logs are exported alongside traces and metrics.
 
 Telemetry is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` is not set.
