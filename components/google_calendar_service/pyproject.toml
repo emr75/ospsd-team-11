@@ -9,8 +9,8 @@ dependencies = [
     "google-calendar-client-impl",
     "ai-client-api",
     "openai-ai-client-impl",
-    "issue-tracker-api",
-    "issue-tracker-client-impl",
+    "ospd-issue-tracker-api",
+    "issue-tracker-client-adapter",
     "fastapi>=0.135.1",
     "fastapi-sessions>=0.3.2",
     "httpx>=0.28.1",
@@ -20,14 +20,6 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.44b0",
     "opentelemetry-exporter-otlp-proto-http>=1.23.0",
 ]
-
-[tool.uv.sources]
-ai-client-api = { workspace = true }
-calendar-client-api = { workspace = true }
-google-calendar-client-impl = { workspace = true }
-openai-ai-client-impl = { workspace = true }
-issue-tracker-api = { workspace = true }
-issue-tracker-client-impl = { git = "https://github.com/yawnka/ospsd-team-03.git", subdirectory = "components/issue_tracker_client_impl" }
 
 [build-system]
 requires = ["hatchling"]

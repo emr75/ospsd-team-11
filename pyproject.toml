@@ -30,12 +30,24 @@ members = [
     "components/google_calendar_service",
     "components/google_calendar_service_api_client",
     "components/google_calendar_service_adapter",
-    "components/issue_tracker_api",
     "components/openai_ai_client_impl",
 ]
 
+
 [tool.uv.sources]
-ospd-issue-tracker-api = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git", rev = "main" }
+ai-client-api = { workspace = true }
+calendar-client-api = { workspace = true }
+google-calendar-client-impl = { workspace = true }
+google-calendar-service = { workspace = true }
+google-calendar-service-adapter = { workspace = true }
+google-calendar-service-client = { workspace = true }
+openai-ai-client-impl = { workspace = true }
+ospsd-calendar-api = { git = "https://github.com/DeMoliT1on/ospsd-calendar-api", branch = "main" }
+ospd-issue-tracker-api = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git", branch = "main" }
+issue-tracker-client-adapter = { git = "https://github.com/yawnka/ospsd-team-03.git", branch = "hw-3", subdirectory = "components/issue_tracker_client_adapter" }
+issue-tracker-client-api = { git = "https://github.com/yawnka/ospsd-team-03.git", branch = "hw-3", subdirectory = "components/issue_tracker_client_api" }
+issue-tracker-client-service-client = { git = "https://github.com/yawnka/ospsd-team-03.git", branch = "hw-3", subdirectory = "components/issue_tracker_client_service_client" }
+
 
 [tool.ruff]
 line-length = 130
@@ -76,7 +88,6 @@ mypy_path = [
     "components/google_calendar_client_impl/src",
     "components/google_calendar_service/src",
     "components/google_calendar_service_adapter/src",
-    "components/issue_tracker_api/src",
     "components/openai_ai_client_impl/src",
 ]
 ignore_missing_imports = false
@@ -85,11 +96,14 @@ exclude = [
     "components/google_calendar_service_api_client", # Exclude generated client code from type checking
 ]
 
-# Allow untyped imports for specific modules
 #[[tool.mypy.overrides]]
 #module = [
 #    "google.*",
 #    "googleapiclient.*",
+#    "api.*",                              # shared issue-tracker vertical ABC (no py.typed)
+#    "issue_tracker_client_adapter.*",     # Team 3 adapter (no py.typed)
+#    "issue_tracker_client_api.*",         # Team 3 client API (no py.typed)
+#    "issue_tracker_client_service_client.*",  # Team 3 generated client (no py.typed)
 #]
 #ignore_missing_imports = true
 
