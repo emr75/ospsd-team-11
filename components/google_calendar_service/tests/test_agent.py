@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -516,3 +517,341 @@ def test_dispatch_tool_schedule_issue_work_session_uses_first_gap() -> None:
     assert event["end_time"] == "2026-05-08T10:45:00"
     assert scheduled_issue["status"] == "in_progress"
     assert calendar.created_events[0].title == "Issue Work: Bug: login broken"
+
+
+# ---------------------------------------------------------------------------
+# make_tool_handler tests
+# ---------------------------------------------------------------------------
+
+
+def test_make_tool_handler_returns_json_on_success() -> None:
+    """Ensure the handler serializes a successful tool result to JSON."""
+    from google_calendar_service.integrations.tools import make_tool_handler
+
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+    handler = make_tool_handler(calendar, issue)
+
+    result = handler("list_events", {})
+    parsed = json.loads(result)
+    assert isinstance(parsed, list)
+    assert parsed[0]["id"] == "event-1"
+
+
+def test_make_tool_handler_returns_error_json_on_type_error() -> None:
+    """Ensure TypeError from dispatch is caught and returned as JSON error."""
+    from google_calendar_service.integrations.tools import make_tool_handler
+
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+    handler = make_tool_handler(calendar, issue)
+
+    result = handler("create_event", {})
+    parsed = json.loads(result)
+    assert "error" in parsed
+    assert parsed["tool"] == "create_event"
+
+
+def test_make_tool_handler_returns_error_json_on_unexpected_exception() -> None:
+    """Ensure unexpected exceptions are caught and returned as JSON error."""
+    from google_calendar_service.integrations.tools import make_tool_handler
+
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+    handler = make_tool_handler(calendar, issue)
+
+    # Trigger a KeyError inside get_issue by requesting a non-existent ID
+    result = handler("get_issue", {"issue_id": "nonexistent"})
+    parsed = json.loads(result)
+    assert "error" in parsed
+    assert parsed["tool"] == "get_issue"
+
+
+# ---------------------------------------------------------------------------
+# update_event handler tests
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_tool_update_event_success() -> None:
+    """Ensure update_event dispatches and returns updated event dict."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = cast(
+        "dict[str, object]",
+        dispatch_tool(
+            name="update_event",
+            arguments={
+                "event_id": "event-1",
+                "title": "Renamed",
+                "start_time": "2026-05-01T09:00:00",
+                "end_time": "2026-05-01T10:00:00",
+                "description": "New desc",
+                "location": "Room A",
+            },
+            calendar_client=calendar,
+            issue_client=issue,
+        ),
+    )
+
+    assert result["id"] == "event-1"
+    assert len(calendar.updated_events) == 1
+
+
+# ---------------------------------------------------------------------------
+# list_events with date range
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_tool_list_events_with_date_range() -> None:
+    """Ensure list_events uses list_events_between when start and end are given."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = dispatch_tool(
+        name="list_events",
+        arguments={
+            "start": "2026-04-29T00:00:00",
+            "end": "2026-04-30T00:00:00",
+        },
+        calendar_client=calendar,
+        issue_client=issue,
+    )
+
+    assert isinstance(result, list)
+
+
+# ---------------------------------------------------------------------------
+# create_event_from_issue validation
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_tool_create_event_from_issue_missing_fields() -> None:
+    """Ensure create_event_from_issue raises TypeError on missing fields."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    with pytest.raises(TypeError, match="Missing issue_id"):
+        dispatch_tool(
+            name="create_event_from_issue",
+            arguments={"start": "2026-05-01T10:00:00", "end": "2026-05-01T11:00:00"},
+            calendar_client=calendar,
+            issue_client=issue,
+        )
+
+    with pytest.raises(TypeError, match="Missing start"):
+        dispatch_tool(
+            name="create_event_from_issue",
+            arguments={"issue_id": "42"},
+            calendar_client=calendar,
+            issue_client=issue,
+        )
+
+
+# ---------------------------------------------------------------------------
+# list_issues across all boards (no board_id)
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_tool_list_issues_all_boards() -> None:
+    """Ensure list_issues iterates all boards when board_id is omitted."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = dispatch_tool(
+        name="list_issues",
+        arguments={},
+        calendar_client=calendar,
+        issue_client=issue,
+    )
+
+    assert isinstance(result, list)
+    expected_issue_count = len(issue.issues)
+    assert len(result) == expected_issue_count
+
+
+# ---------------------------------------------------------------------------
+# create_event missing required fields
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_tool_create_event_missing_start() -> None:
+    """Ensure create_event raises TypeError when start is missing."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    with pytest.raises(TypeError, match="Missing start"):
+        dispatch_tool(
+            name="create_event",
+            arguments={"title": "Meeting", "end": "2026-05-01T16:00:00"},
+            calendar_client=calendar,
+            issue_client=issue,
+        )
+
+
+def test_dispatch_tool_create_event_missing_end() -> None:
+    """Ensure create_event raises TypeError when end is missing."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    with pytest.raises(TypeError, match="Missing end"):
+        dispatch_tool(
+            name="create_event",
+            arguments={"title": "Meeting", "start": "2026-05-01T15:00:00"},
+            calendar_client=calendar,
+            issue_client=issue,
+        )
+
+
+# ---------------------------------------------------------------------------
+# schedule_issue_work_session validation and edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_dispatch_tool_schedule_missing_window_start() -> None:
+    """Ensure schedule_issue_work_session raises TypeError for missing window_start."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    with pytest.raises(TypeError, match="Missing window_start"):
+        dispatch_tool(
+            name="schedule_issue_work_session",
+            arguments={
+                "issue_id": "42",
+                "window_end": "2026-05-08T12:00:00",
+                "duration_minutes": 30,
+            },
+            calendar_client=calendar,
+            issue_client=issue,
+        )
+
+
+def test_dispatch_tool_schedule_missing_window_end() -> None:
+    """Ensure schedule_issue_work_session raises TypeError for missing window_end."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    with pytest.raises(TypeError, match="Missing window_end"):
+        dispatch_tool(
+            name="schedule_issue_work_session",
+            arguments={
+                "issue_id": "42",
+                "window_start": "2026-05-08T09:00:00",
+                "duration_minutes": 30,
+            },
+            calendar_client=calendar,
+            issue_client=issue,
+        )
+
+
+def test_dispatch_tool_schedule_missing_duration() -> None:
+    """Ensure schedule_issue_work_session raises TypeError for missing duration."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    with pytest.raises(TypeError, match="Missing duration_minutes"):
+        dispatch_tool(
+            name="schedule_issue_work_session",
+            arguments={
+                "issue_id": "42",
+                "window_start": "2026-05-08T09:00:00",
+                "window_end": "2026-05-08T12:00:00",
+            },
+            calendar_client=calendar,
+            issue_client=issue,
+        )
+
+
+def test_dispatch_tool_schedule_no_slot_available() -> None:
+    """Ensure schedule raises ValueError when window is fully booked."""
+    calendar = FakeCalendarClient()
+    calendar.events_between = [
+        FakeEvent(
+            _id="busy-1",
+            _title="All day",
+            _start_time=datetime.fromisoformat("2026-05-08T09:00:00"),
+            _end_time=datetime.fromisoformat("2026-05-08T12:00:00"),
+        ),
+    ]
+    issue = FakeIssueClient()
+
+    with pytest.raises(ValueError, match="No available calendar slot"):
+        dispatch_tool(
+            name="schedule_issue_work_session",
+            arguments={
+                "issue_id": "42",
+                "window_start": "2026-05-08T09:00:00",
+                "window_end": "2026-05-08T12:00:00",
+                "duration_minutes": 60,
+            },
+            calendar_client=calendar,
+            issue_client=issue,
+        )
+
+
+def test_dispatch_tool_schedule_window_end_before_start() -> None:
+    """Ensure schedule raises ValueError when window is inverted."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    with pytest.raises(ValueError, match="window_end must be after window_start"):
+        dispatch_tool(
+            name="schedule_issue_work_session",
+            arguments={
+                "issue_id": "42",
+                "window_start": "2026-05-08T12:00:00",
+                "window_end": "2026-05-08T09:00:00",
+                "duration_minutes": 30,
+            },
+            calendar_client=calendar,
+            issue_client=issue,
+        )
+
+
+# ---------------------------------------------------------------------------
+# _parse_status edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_parse_status_invalid_value() -> None:
+    """Ensure _parse_status raises ValueError for unknown status strings."""
+    from google_calendar_service.integrations.tools import _parse_status
+
+    with pytest.raises(ValueError, match="Unsupported status"):
+        _parse_status("nonexistent_status")
+
+
+def test_parse_status_non_string() -> None:
+    """Ensure _parse_status raises TypeError for non-string input."""
+    from google_calendar_service.integrations.tools import _parse_status
+
+    with pytest.raises(TypeError, match="status must be a string"):
+        _parse_status(42)
+
+
+def test_parse_status_returns_enum_directly() -> None:
+    """Ensure _parse_status passes through Status enum values."""
+    from google_calendar_service.integrations.tools import _parse_status
+
+    assert _parse_status(Status.IN_PROGRESS) is Status.IN_PROGRESS
+
+
+# ---------------------------------------------------------------------------
+# _optional_string_list edge cases
+# ---------------------------------------------------------------------------
+
+
+def test_optional_string_list_rejects_non_list() -> None:
+    """Ensure _optional_string_list raises TypeError for non-list input."""
+    from google_calendar_service.integrations.tools import _optional_string_list
+
+    with pytest.raises(TypeError, match="members must be a list"):
+        _optional_string_list("not-a-list", "members")
+
+
+def test_optional_string_list_rejects_non_string_items() -> None:
+    """Ensure _optional_string_list raises TypeError for non-string items."""
+    from google_calendar_service.integrations.tools import _optional_string_list
+
+    with pytest.raises(TypeError, match="members must be a list"):
+        _optional_string_list([1, 2, 3], "members")

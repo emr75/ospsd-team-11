@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from api.issue import Status  # type: ignore[import-untyped]
-
 from calendar_client_api import EventCreate, EventUpdate
 from calendar_client_api.event import UNSET
+
 from google_calendar_service.integrations.issue_to_calendar import (
     create_event_from_issue_flow,
 )
