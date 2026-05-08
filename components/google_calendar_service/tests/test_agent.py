@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from ai_client_api import AiClient
+from api.issue import Status  # type: ignore[import-untyped]
 from calendar_client_api import Attendee, CalendarClient, Event, EventCreate, EventUpdate
 from google_calendar_service.integrations import agent
 from google_calendar_service.integrations.tools import dispatch_tool
@@ -162,7 +163,7 @@ class FakeIssueClient:
                 desc="Login page returns 500.",
                 members=["alice@example.com"],
                 due_date="2026-05-08",
-                status="to_do",
+                status=Status.TO_DO,
                 board_id="board-1",
             ),
             "43": SimpleNamespace(
@@ -171,7 +172,7 @@ class FakeIssueClient:
                 desc="Track event mutations.",
                 members=None,
                 due_date=None,
-                status="completed",
+                status=Status.COMPLETED,
                 board_id="board-1",
             ),
         }
@@ -202,14 +203,14 @@ class FakeIssueClient:
     ) -> Issue:
         """Create and store a fake issue."""
         issue_id = "created-issue"
-        status_value = getattr(status, "value", status) or "to_do"
+        resolved_status = status if isinstance(status, Status) else Status.TO_DO
         issue = SimpleNamespace(
             id=issue_id,
             title=title,
             desc=desc or "",
             members=members,
             due_date=due_date,
-            status=status_value,
+            status=resolved_status,
             board_id=board_id,
         )
         self.issues[issue_id] = issue
@@ -220,7 +221,7 @@ class FakeIssueClient:
                 "desc": desc,
                 "members": members,
                 "due_date": due_date,
-                "status": status_value,
+                "status": resolved_status,
             }
         )
         return cast("Issue", issue)
@@ -246,7 +247,7 @@ class FakeIssueClient:
         if due_date is not None:
             issue.due_date = due_date
         if status is not None:
-            issue.status = getattr(status, "value", status)
+            issue.status = status
         if board_id is not None:
             issue.board_id = board_id
         self.updated_issues.append(
@@ -256,7 +257,7 @@ class FakeIssueClient:
                 "desc": desc,
                 "members": members,
                 "due_date": due_date,
-                "status": getattr(status, "value", status),
+                "status": status,
                 "board_id": board_id,
             }
         )
@@ -323,12 +324,12 @@ def test_dispatch_tool_list_events() -> None:
     assert result[0]["id"] == "event-1"
 
 
-def test_dispatch_tool_update_event_missing_reference() -> None:
-    """Ensure update_event raises TypeError when reference is missing."""
+def test_dispatch_tool_update_event_missing_id() -> None:
+    """Ensure update_event raises TypeError when event_id is missing."""
     calendar = FakeCalendarClient()
     issue = FakeIssueClient()
 
-    with pytest.raises(TypeError, match="Missing event_reference"):
+    with pytest.raises(TypeError, match="Missing event_id"):
         dispatch_tool(
             name="update_event",
             arguments={},
@@ -470,7 +471,7 @@ def test_dispatch_tool_update_issue_status() -> None:
     )
 
     assert result["status"] == "in_progress"
-    assert issue.updated_issues[0]["status"] == "in_progress"
+    assert issue.updated_issues[0]["status"] == Status.IN_PROGRESS
 
 
 def test_dispatch_tool_schedule_issue_work_session_uses_first_gap() -> None:

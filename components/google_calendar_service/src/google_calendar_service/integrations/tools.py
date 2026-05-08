@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from api.issue import Status  # type: ignore[import-untyped]
+
 from calendar_client_api import EventCreate, EventUpdate
 from calendar_client_api.event import UNSET
-
 from google_calendar_service.integrations.issue_to_calendar import (
     create_event_from_issue_flow,
 )
@@ -72,17 +72,17 @@ TOOLS: list[ToolDefinition] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "event_reference": {
+                    "event_id": {
                         "type": "string",
-                        "description": "Human-readable event reference, such as the meeting title.",
+                        "description": "The ID of the event to update (from list_events).",
                     },
+                    "title": {"type": "string"},
                     "start_time": {"type": "string", "description": "Optional ISO 8601 datetime."},
                     "end_time": {"type": "string", "description": "Optional ISO 8601 datetime."},
-                    "title": {"type": "string"},
                     "description": {"type": "string"},
                     "location": {"type": ["string", "null"]},
                 },
-                "required": ["event_reference"],
+                "required": ["event_id"],
                 "additionalProperties": False,
             },
         },
@@ -274,13 +274,13 @@ def dispatch_tool(
         "create_event": lambda: _handle_create_event(calendar_client, arguments),
         "list_events": lambda: _handle_list_events(calendar_client, arguments),
         "update_event": lambda: _handle_update_event(calendar_client, arguments),
-        "create_event_from_issue": lambda: _handle_create_event_from_issue(arguments, issue_client, calendar_client),
         "list_issue_boards": lambda: _handle_list_issue_boards(issue_client),
         "list_issues": lambda: _handle_list_issues(issue_client, arguments),
         "get_issue": lambda: _handle_get_issue(issue_client, arguments),
         "create_issue": lambda: _handle_create_issue(issue_client, arguments),
         "update_issue": lambda: _handle_update_issue(issue_client, arguments),
-        "schedule_issue_work_session": lambda: _handle_schedule_issue_work_session(arguments, issue_client, calendar_client),
+        "create_event_from_issue": lambda: _handle_create_event_from_issue(calendar_client, issue_client, arguments),
+        "schedule_issue_work_session": lambda: _handle_schedule_issue_work_session(calendar_client, issue_client, arguments),
     }
 
     try:
@@ -318,7 +318,7 @@ def _issue_to_dict(issue: Issue) -> dict[str, object]:
         "description": issue.desc,
         "members": issue.members,
         "due_date": issue.due_date,
-        "status": _status_to_text(issue.status),
+        "status": issue.status.value,
         "board_id": str(issue.board_id),
     }
 
@@ -377,35 +377,33 @@ def _handle_list_events(
     return [_event_to_dict(e) for e in events]
 
 
-def _handle_create_event_from_issue(
-    arguments: Mapping[str, object],
-    issue_client: IssueClient,
+def _handle_update_event(
     calendar_client: CalendarClient,
+    arguments: Mapping[str, object],
 ) -> object:
-    """Create a calendar event from an issue."""
-    issue_id = arguments.get("issue_id")
-    start = arguments.get("start")
-    end = arguments.get("end")
+    """Update a calendar event by its ID."""
+    event_id = arguments.get("event_id")
 
-    if not isinstance(issue_id, str):
-        message = "Missing issue_id"
+    if not isinstance(event_id, str):
+        message = "Missing event_id"
         raise TypeError(message)
 
-    if not isinstance(start, str):
-        message = "Missing start"
-        raise TypeError(message)
+    start_time_raw = arguments.get("start_time")
+    end_time_raw = arguments.get("end_time")
+    title_raw = arguments.get("title")
+    description_raw = arguments.get("description")
+    location_raw = arguments.get("location")
 
-    if not isinstance(end, str):
-        message = "Missing end"
-        raise TypeError(message)
-
-    return create_event_from_issue_flow(
-        issue_id=issue_id,
-        start=start,
-        end=end,
-        issue_client=issue_client,
-        calendar_client=calendar_client,
+    patch = EventUpdate(
+        title=title_raw if isinstance(title_raw, str) else UNSET,
+        start_time=datetime.fromisoformat(start_time_raw) if isinstance(start_time_raw, str) else UNSET,
+        end_time=datetime.fromisoformat(end_time_raw) if isinstance(end_time_raw, str) else UNSET,
+        description=description_raw if isinstance(description_raw, str) else UNSET,
+        location=location_raw if isinstance(location_raw, str) else UNSET,
     )
+
+    event = calendar_client.update_event_from_patch(event_id, patch)
+    return _event_to_dict(event)
 
 
 def _handle_list_issue_boards(issue_client: IssueClient) -> object:
@@ -429,7 +427,7 @@ def _handle_list_issues(
             issues.extend(issue_client.get_issues(str(board.id)))
 
     if status is not None:
-        issues = [issue for issue in issues if _status_to_text(issue.status) == status.value]
+        issues = [issue for issue in issues if issue.status.value == status.value]
 
     return [_issue_to_dict(issue) for issue in issues]
 
@@ -506,10 +504,41 @@ def _handle_update_issue(
     return _issue_to_dict(issue)
 
 
-def _handle_schedule_issue_work_session(
-    arguments: Mapping[str, object],
-    issue_client: IssueClient,
+def _handle_create_event_from_issue(
     calendar_client: CalendarClient,
+    issue_client: IssueClient,
+    arguments: Mapping[str, object],
+) -> object:
+    """Create a calendar event from an issue."""
+    issue_id = arguments.get("issue_id")
+    start = arguments.get("start")
+    end = arguments.get("end")
+
+    if not isinstance(issue_id, str):
+        message = "Missing issue_id"
+        raise TypeError(message)
+
+    if not isinstance(start, str):
+        message = "Missing start"
+        raise TypeError(message)
+
+    if not isinstance(end, str):
+        message = "Missing end"
+        raise TypeError(message)
+
+    return create_event_from_issue_flow(
+        issue_id=issue_id,
+        start=start,
+        end=end,
+        issue_client=issue_client,
+        calendar_client=calendar_client,
+    )
+
+
+def _handle_schedule_issue_work_session(
+    calendar_client: CalendarClient,
+    issue_client: IssueClient,
+    arguments: Mapping[str, object],
 ) -> object:
     """Schedule issue work in the first available calendar slot."""
     issue_id = arguments.get("issue_id")
@@ -562,56 +591,6 @@ def _handle_schedule_issue_work_session(
         "event": _event_to_dict(event),
         "status": "scheduled",
     }
-
-
-def _handle_update_event(
-    calendar_client: CalendarClient,
-    arguments: Mapping[str, object],
-) -> object:
-    """Resolve an event reference and update the matching event."""
-    event_reference_obj = arguments.get("event_reference")
-
-    if not isinstance(event_reference_obj, str):
-        message = "Missing event_reference"
-        raise TypeError(message)
-
-    matched_event_id = _resolve_event_id(calendar_client, event_reference_obj)
-
-    if matched_event_id is None:
-        message = f"No event found for reference: {event_reference_obj}"
-        raise ValueError(message)
-
-    start_time_raw = arguments.get("start_time")
-    end_time_raw = arguments.get("end_time")
-    title_raw = arguments.get("title")
-    description_raw = arguments.get("description")
-    location_raw = arguments.get("location")
-
-    patch = EventUpdate(
-        title=title_raw if isinstance(title_raw, str) else UNSET,
-        start_time=datetime.fromisoformat(start_time_raw) if isinstance(start_time_raw, str) else UNSET,
-        end_time=datetime.fromisoformat(end_time_raw) if isinstance(end_time_raw, str) else UNSET,
-        description=description_raw if isinstance(description_raw, str) else UNSET,
-        location=location_raw if isinstance(location_raw, str) else UNSET,
-    )
-
-    event = calendar_client.update_event_from_patch(matched_event_id, patch)
-    return _event_to_dict(event)
-
-
-def _resolve_event_id(
-    calendar_client: CalendarClient,
-    event_reference: str,
-) -> str | None:
-    """Resolve a human-readable event reference to a concrete event ID."""
-    events = calendar_client.list_upcoming_events()
-    normalized_reference = event_reference.strip().lower()
-
-    for event in events:
-        if event.title.strip().lower() == normalized_reference:
-            return event.id
-
-    return None
 
 
 def _find_first_free_slot(
@@ -672,20 +651,12 @@ def _issue_event_description(issue: Issue) -> str:
     parts = [f"Issue ID: {issue.id}"]
     if issue.desc:
         parts.append(issue.desc)
-    status = _status_to_text(issue.status)
+    status = issue.status.value if issue.status else None
     if status:
         parts.append(f"Status: {status}")
     if issue.due_date:
         parts.append(f"Due date: {issue.due_date}")
     return "\n".join(parts)
-
-
-def _status_to_text(value: object) -> str | None:
-    """Convert a status enum or string-like object to text."""
-    if value is None:
-        return None
-    status_value = getattr(value, "value", value)
-    return str(status_value)
 
 
 def _parse_status(value: object) -> Status | None:
