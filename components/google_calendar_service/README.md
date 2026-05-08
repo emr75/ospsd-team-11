@@ -13,6 +13,7 @@ It exposes HTTP endpoints for:
 It translates HTTP requests/responses to and from the domain contracts defined in `calendar_client_api`, while delegating Google Calendar operations to `google_calendar_client_impl`.
 
 It also exposes AI-powered routes for processing natural language requests and mapping them to structured calendar operations via the `ai_client_api`.
+The AI route is backed by dependency-injected calendar, AI, and issue-tracker clients, so the agent can coordinate calendar operations with issue tracker data without depending on either provider's concrete SDK at the orchestration boundary.
 
 ---
 
@@ -52,6 +53,9 @@ It also exposes AI-powered routes for processing natural language requests and m
 | `routes/auth_routes.py` | `/auth/login`, `/auth/callback`, `/auth/logout` |
 | `routes/event_routes.py` | `/events` CRUD endpoints with authenticated session dependency |
 | `routes/health_routes.py` | `/health` endpoint |
+| `integrations/agent.py` | System prompt and AI tool-loop orchestration |
+| `integrations/tools.py` | Provider-neutral tool definitions and dispatch handlers for calendar, issue, and cross-service workflows |
+| `integrations/issue_to_calendar.py` | Shared issue-to-calendar event construction flow |
 
 ---
 
@@ -94,7 +98,15 @@ All event routes depend on a valid authenticated session with non-expired OAuth 
 
 ### AI
 
-- `POST /ai/` — Accepts a natural language prompt and optional context, forwards it to the AI client, and returns a structured response including message text and any tool calls
+- `POST /ai/` — Accepts a natural language prompt and optional context, forwards it to the AI client, and returns the final assistant message after any tool calls complete.
+
+The agent tool surface includes:
+
+- Calendar tools: `create_event`, `list_events`, `update_event`
+- Issue tracker tools: `list_issue_boards`, `list_issues`, `get_issue`, `create_issue`, `update_issue`
+- Cross-service tools: `create_event_from_issue`, `schedule_issue_work_session`
+
+`schedule_issue_work_session` fetches issue details, searches calendar events in a requested window, creates the issue work event in the first available slot, and can optionally move the issue to `in_progress`. Destructive issue operations such as delete are intentionally not exposed to the model.
 
 ### Telemetry
 

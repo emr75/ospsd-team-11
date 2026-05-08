@@ -80,6 +80,7 @@ class FakeCalendarClient(CalendarClient):
         """Initialize recorded calendar operations."""
         self.created_events: list[EventCreate] = []
         self.updated_events: list[tuple[str, EventUpdate]] = []
+        self.events_between: list[Event] = []
 
     def get_event_by_id(self, event_id: str) -> Event:
         """Return a fake event by ID."""
@@ -101,6 +102,8 @@ class FakeCalendarClient(CalendarClient):
 
     def list_events_between(self, start: datetime, end: datetime) -> Iterable[Event]:
         """Return fake calendar events for a date range."""
+        if self.events_between:
+            return self.events_between
         return list(self.list_upcoming_events())
 
     def create_event_from_dto(self, event_create: EventCreate) -> Event:
@@ -149,19 +152,115 @@ class FakeIssueClient:
     def __init__(self) -> None:
         """Initialize recorded issue operations."""
         self.requested_issue_id: str | None = None
+        self.boards: list[Any] = [
+            SimpleNamespace(id="board-1", board_name="Engineering"),
+        ]
+        self.issues: dict[str, Any] = {
+            "42": SimpleNamespace(
+                id="42",
+                title="Bug: login broken",
+                desc="Login page returns 500.",
+                members=["alice@example.com"],
+                due_date="2026-05-08",
+                status="to_do",
+                board_id="board-1",
+            ),
+            "43": SimpleNamespace(
+                id="43",
+                title="Add audit logs",
+                desc="Track event mutations.",
+                members=None,
+                due_date=None,
+                status="completed",
+                board_id="board-1",
+            ),
+        }
+        self.created_issues: list[dict[str, Any]] = []
+        self.updated_issues: list[dict[str, Any]] = []
 
     def get_issue(self, issue_id: str) -> Issue:
         """Return a fake issue and record the requested ID."""
         self.requested_issue_id = issue_id
-        return cast(
-            "Issue",
-            SimpleNamespace(
-                id=issue_id,
-                title="Bug: login broken",
-                desc="Login page returns 500.",
-                status="open",
-            ),
+        return cast("Issue", self.issues[issue_id])
+
+    def get_boards(self) -> Iterable[Any]:
+        """Return fake boards."""
+        return self.boards
+
+    def get_issues(self, board_id: str) -> Iterable[Issue]:
+        """Return fake issues for a board."""
+        return [cast("Issue", issue) for issue in self.issues.values() if issue.board_id == board_id]
+
+    def create_issue(  # noqa: PLR0913
+        self,
+        title: str,
+        board_id: str,
+        desc: str | None = None,
+        members: list[str] | None = None,
+        due_date: str | None = None,
+        status: Any = None,
+    ) -> Issue:
+        """Create and store a fake issue."""
+        issue_id = "created-issue"
+        status_value = getattr(status, "value", status) or "to_do"
+        issue = SimpleNamespace(
+            id=issue_id,
+            title=title,
+            desc=desc or "",
+            members=members,
+            due_date=due_date,
+            status=status_value,
+            board_id=board_id,
         )
+        self.issues[issue_id] = issue
+        self.created_issues.append(
+            {
+                "title": title,
+                "board_id": board_id,
+                "desc": desc,
+                "members": members,
+                "due_date": due_date,
+                "status": status_value,
+            }
+        )
+        return cast("Issue", issue)
+
+    def update_issue(  # noqa: PLR0913
+        self,
+        issue_id: str,
+        title: str | None = None,
+        desc: str | None = None,
+        members: list[str] | None = None,
+        due_date: str | None = None,
+        status: Any = None,
+        board_id: str | None = None,
+    ) -> Issue:
+        """Update a fake issue."""
+        issue = self.issues[issue_id]
+        if title is not None:
+            issue.title = title
+        if desc is not None:
+            issue.desc = desc
+        if members is not None:
+            issue.members = members
+        if due_date is not None:
+            issue.due_date = due_date
+        if status is not None:
+            issue.status = getattr(status, "value", status)
+        if board_id is not None:
+            issue.board_id = board_id
+        self.updated_issues.append(
+            {
+                "issue_id": issue_id,
+                "title": title,
+                "desc": desc,
+                "members": members,
+                "due_date": due_date,
+                "status": getattr(status, "value", status),
+                "board_id": board_id,
+            }
+        )
+        return cast("Issue", issue)
 
 
 def test_run_ai_turn_calls_ai_client_with_expected_inputs() -> None:
@@ -275,3 +374,144 @@ def test_dispatch_tool_create_event_from_issue() -> None:
     assert result["issue_id"] == "42"
     assert issue.requested_issue_id == "42"
     assert len(calendar.created_events) == 1
+
+
+def test_dispatch_tool_lists_issue_boards() -> None:
+    """Ensure issue boards are exposed to the AI tool layer."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = dispatch_tool(
+        name="list_issue_boards",
+        arguments={},
+        calendar_client=calendar,
+        issue_client=issue,
+    )
+
+    assert isinstance(result, list)
+    assert result == [{"id": "board-1", "name": "Engineering"}]
+
+
+def test_dispatch_tool_lists_filtered_issues() -> None:
+    """Ensure issues can be listed and filtered by shared status."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = dispatch_tool(
+        name="list_issues",
+        arguments={"board_id": "board-1", "status": "done"},
+        calendar_client=calendar,
+        issue_client=issue,
+    )
+
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["id"] == "43"
+
+
+def test_dispatch_tool_get_issue() -> None:
+    """Ensure a single issue can be fetched."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = cast(
+        "dict[str, object]",
+        dispatch_tool(
+            name="get_issue",
+            arguments={"issue_id": "42"},
+            calendar_client=calendar,
+            issue_client=issue,
+        ),
+    )
+
+    assert result["title"] == "Bug: login broken"
+    assert result["board_id"] == "board-1"
+
+
+def test_dispatch_tool_create_issue() -> None:
+    """Ensure the agent can create issue tracker issues."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = cast(
+        "dict[str, object]",
+        dispatch_tool(
+            name="create_issue",
+            arguments={
+                "title": "Fix calendar OAuth refresh",
+                "board_id": "board-1",
+                "description": "Refresh token handling fails.",
+                "members": ["dev@example.com"],
+                "status": "open",
+            },
+            calendar_client=calendar,
+            issue_client=issue,
+        ),
+    )
+
+    assert result["id"] == "created-issue"
+    assert result["status"] == "to_do"
+    assert issue.created_issues[0]["desc"] == "Refresh token handling fails."
+
+
+def test_dispatch_tool_update_issue_status() -> None:
+    """Ensure the agent can update issue status."""
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = cast(
+        "dict[str, object]",
+        dispatch_tool(
+            name="update_issue",
+            arguments={"issue_id": "42", "status": "in progress"},
+            calendar_client=calendar,
+            issue_client=issue,
+        ),
+    )
+
+    assert result["status"] == "in_progress"
+    assert issue.updated_issues[0]["status"] == "in_progress"
+
+
+def test_dispatch_tool_schedule_issue_work_session_uses_first_gap() -> None:
+    """Ensure issue work scheduling creates an event in the first available slot."""
+    calendar = FakeCalendarClient()
+    calendar.events_between = [
+        FakeEvent(
+            _id="busy-1",
+            _title="Blocked",
+            _start_time=datetime.fromisoformat("2026-05-08T09:00:00"),
+            _end_time=datetime.fromisoformat("2026-05-08T10:00:00"),
+        ),
+        FakeEvent(
+            _id="busy-2",
+            _title="Another meeting",
+            _start_time=datetime.fromisoformat("2026-05-08T11:00:00"),
+            _end_time=datetime.fromisoformat("2026-05-08T11:30:00"),
+        ),
+    ]
+    issue = FakeIssueClient()
+
+    result = cast(
+        "dict[str, object]",
+        dispatch_tool(
+            name="schedule_issue_work_session",
+            arguments={
+                "issue_id": "42",
+                "window_start": "2026-05-08T09:00:00",
+                "window_end": "2026-05-08T12:00:00",
+                "duration_minutes": 45,
+                "update_status": True,
+            },
+            calendar_client=calendar,
+            issue_client=issue,
+        ),
+    )
+
+    event = cast("dict[str, object]", result["event"])
+    scheduled_issue = cast("dict[str, object]", result["issue"])
+    assert result["status"] == "scheduled"
+    assert event["start_time"] == "2026-05-08T10:00:00"
+    assert event["end_time"] == "2026-05-08T10:45:00"
+    assert scheduled_issue["status"] == "in_progress"
+    assert calendar.created_events[0].title == "Issue Work: Bug: login broken"

@@ -43,8 +43,14 @@ The implementation exposes tool definitions to the model so it can request struc
 - `list_events`
 - `update_event`
 - `create_event_from_issue`
+- `list_issue_boards`
+- `list_issues`
+- `get_issue`
+- `create_issue`
+- `update_issue`
+- `schedule_issue_work_session`
 
-The returned `AiResponse.tool_calls` list contains provider-neutral `AiToolCall` objects, so the service layer can map tool calls to calendar or cross-service workflows without depending on OpenAI SDK types.
+The service layer owns the provider-neutral tool definitions and dispatch, so the AI provider only runs the tool loop. Issue deletion is not exposed to the model. `schedule_issue_work_session` combines issue details with calendar availability to schedule the first open work slot in a user-provided time window.
 
 ## Usage
 
