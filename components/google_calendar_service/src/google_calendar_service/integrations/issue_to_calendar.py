@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    from api.issue import Issue  # type: ignore[import-untyped]
+from calendar_client_api import EventCreate
 
-    from google_calendar_service.integrations.protocol import CalendarCreateEventProtocol, IssueClientProtocol
+if TYPE_CHECKING:
+    from api.client import Client as IssueClient  # type: ignore[import-untyped]
+    from api.issue import Issue  # type: ignore[import-untyped]
+    from calendar_client_api import CalendarClient
 
 
 def build_event_payload_from_issue(
@@ -40,22 +42,23 @@ def create_event_from_issue_flow(
     issue_id: str,
     start: str,
     end: str,
-    issue_client: IssueClientProtocol,
-    calendar_client: CalendarCreateEventProtocol,
+    issue_client: IssueClient,
+    calendar_client: CalendarClient,
 ) -> dict[str, Any]:
     """Create a calendar event using details from an issue."""
     issue = issue_client.get_issue(issue_id)
     event_payload = build_event_payload_from_issue(issue, start, end)
 
-    parsed_start = datetime.fromisoformat(event_payload["start"])
-    parsed_end = datetime.fromisoformat(event_payload["end"])
-
-    event = calendar_client.create_event(
+    dto = EventCreate(
         title=event_payload["title"],
-        start=parsed_start,
-        end=parsed_end,
+        start_time=datetime.fromisoformat(event_payload["start"]),
+        end_time=datetime.fromisoformat(event_payload["end"]),
+        attendees=[],
+        attachments=[],
         description=event_payload["description"],
     )
+
+    event = calendar_client.create_event_from_dto(dto)
 
     return {
         "issue_id": str(issue.id),

@@ -2,57 +2,145 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
+from ai_client_api import AiClient
+from calendar_client_api import Attendee, CalendarClient, Event, EventCreate, EventUpdate
 from google_calendar_service.integrations import agent
+from google_calendar_service.integrations.tools import dispatch_tool
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from api.issue import Issue  # type: ignore[import-untyped]
 
 
-class FakeAiClient:
+@dataclass
+class FakeEvent(Event):
+    """Concrete Event implementation for tests."""
+
+    _id: str = "fake-event"
+    _title: str = "Fake Event"
+    _start_time: datetime = field(default_factory=lambda: datetime(2026, 1, 1, tzinfo=UTC))
+    _end_time: datetime = field(default_factory=lambda: datetime(2026, 1, 1, 1, tzinfo=UTC))
+    _description: str | None = None
+    _location: str | None = None
+    _attendees: list[Attendee] = field(default_factory=list)
+    _attachments: list[str] = field(default_factory=list)
+
+    @property
+    def id(self) -> str:
+        """Return event ID."""
+        return self._id
+
+    @property
+    def title(self) -> str:
+        """Return event title."""
+        return self._title
+
+    @property
+    def start_time(self) -> datetime:
+        """Return event start time."""
+        return self._start_time
+
+    @property
+    def end_time(self) -> datetime:
+        """Return event end time."""
+        return self._end_time
+
+    @property
+    def description(self) -> str | None:
+        """Return event description."""
+        return self._description
+
+    @property
+    def location(self) -> str | None:
+        """Return event location."""
+        return self._location
+
+    @property
+    def attendees(self) -> list[Attendee]:
+        """Return event attendees."""
+        return self._attendees
+
+    @property
+    def attachments(self) -> list[str]:
+        """Return event attachments."""
+        return self._attachments
+
+
+class FakeCalendarClient(CalendarClient):
+    """Fake calendar client for testing tool dispatch."""
+
+    def __init__(self) -> None:
+        """Initialize recorded calendar operations."""
+        self.created_events: list[EventCreate] = []
+        self.updated_events: list[tuple[str, EventUpdate]] = []
+
+    def get_event_by_id(self, event_id: str) -> Event:
+        """Return a fake event by ID."""
+        return FakeEvent(_id=event_id)
+
+    def delete_event(self, event_id: str) -> None:
+        """No-op delete for testing."""
+
+    def list_upcoming_events(self, max_results: int = 10) -> Iterable[Event]:
+        """Return fake calendar events."""
+        return [
+            FakeEvent(
+                _id="event-1",
+                _title="Standup",
+                _start_time=datetime.fromisoformat("2026-04-29T10:00:00"),
+                _end_time=datetime.fromisoformat("2026-04-29T10:30:00"),
+            ),
+        ]
+
+    def list_events_between(self, start: datetime, end: datetime) -> Iterable[Event]:
+        """Return fake calendar events for a date range."""
+        return list(self.list_upcoming_events())
+
+    def create_event_from_dto(self, event_create: EventCreate) -> Event:
+        """Record and return fake created event."""
+        self.created_events.append(event_create)
+        return FakeEvent(
+            _id="created-1",
+            _title=event_create.title,
+            _start_time=event_create.start_time,
+            _end_time=event_create.end_time,
+            _description=event_create.description,
+            _location=event_create.location,
+        )
+
+    def update_event_from_patch(self, event_id: str, event_patch: EventUpdate) -> Event:
+        """Record and return fake updated event."""
+        self.updated_events.append((event_id, event_patch))
+        return FakeEvent(
+            _id=event_id,
+            _title=event_patch.title if isinstance(event_patch.title, str) else "Updated",
+            _start_time=datetime.fromisoformat("2026-04-29T10:00:00"),
+            _end_time=datetime.fromisoformat("2026-04-29T10:30:00"),
+        )
+
+
+class FakeAiClient(AiClient):
     """Fake AI client that captures inputs and returns a fixed response."""
 
     def __init__(self) -> None:
         """Initialize captured call storage."""
         self.called_with: dict[str, Any] | None = None
 
+    def send_message(self, prompt: str, context: dict[str, Any] | None = None) -> str:
+        """Return a fixed response for single-message calls."""
+        return "Final AI response"
+
     def run_chat_with_tools(self, **kwargs: Any) -> str:
         """Capture tool-loop inputs and return a fixed response."""
         self.called_with = kwargs
         return "Final AI response"
-
-
-class FakeCalendarClient:
-    """Fake calendar client for testing tool dispatch."""
-
-    def __init__(self) -> None:
-        """Initialize recorded calendar operations."""
-        self.created_events: list[dict[str, object]] = []
-        self.updated_events: list[dict[str, object]] = []
-
-    def list_events(self, **kwargs: object) -> list[object]:
-        """Return fake calendar events."""
-        return [
-            {
-                "id": "event-1",
-                "title": "Standup",
-                "start": "2026-04-29T10:00:00",
-                "end": "2026-04-29T10:30:00",
-            }
-        ]
-
-    def create_event(self, **kwargs: object) -> object:
-        """Record and return fake created event."""
-        self.created_events.append(dict(kwargs))
-        return SimpleNamespace(id="created-1", **kwargs)
-
-    def update_event(self, **kwargs: object) -> object:
-        """Record and return fake updated event."""
-        self.updated_events.append(dict(kwargs))
-        return SimpleNamespace(id="updated-1", **kwargs)
 
 
 class FakeIssueClient:
@@ -103,7 +191,7 @@ def test_dispatch_tool_create_event() -> None:
     calendar = FakeCalendarClient()
     issue = FakeIssueClient()
 
-    result = agent._dispatch_tool(
+    result = dispatch_tool(
         name="create_event",
         arguments={
             "title": "Meeting",
@@ -114,7 +202,10 @@ def test_dispatch_tool_create_event() -> None:
         issue_client=issue,
     )
 
-    assert result.id == "created-1"  # type: ignore[attr-defined]
+    assert isinstance(result, dict)
+    assert result["id"] == "created-1"
+    assert len(calendar.created_events) == 1
+    assert calendar.created_events[0].title == "Meeting"
 
 
 def test_dispatch_tool_list_events() -> None:
@@ -122,16 +213,14 @@ def test_dispatch_tool_list_events() -> None:
     calendar = FakeCalendarClient()
     issue = FakeIssueClient()
 
-    result = cast(
-        "list[dict[str, object]]",
-        agent._dispatch_tool(
-            name="list_events",
-            arguments={},
-            calendar_client=calendar,
-            issue_client=issue,
-        ),
+    result = dispatch_tool(
+        name="list_events",
+        arguments={},
+        calendar_client=calendar,
+        issue_client=issue,
     )
 
+    assert isinstance(result, list)
     assert result[0]["id"] == "event-1"
 
 
@@ -141,7 +230,7 @@ def test_dispatch_tool_update_event_missing_reference() -> None:
     issue = FakeIssueClient()
 
     with pytest.raises(TypeError, match="Missing event_reference"):
-        agent._dispatch_tool(
+        dispatch_tool(
             name="update_event",
             arguments={},
             calendar_client=calendar,
@@ -155,7 +244,7 @@ def test_dispatch_tool_unknown_tool() -> None:
     issue = FakeIssueClient()
 
     with pytest.raises(ValueError, match="Unknown tool"):
-        agent._dispatch_tool(
+        dispatch_tool(
             name="unknown_tool",
             arguments={},
             calendar_client=calendar,
@@ -170,7 +259,7 @@ def test_dispatch_tool_create_event_from_issue() -> None:
 
     result = cast(
         "dict[str, object]",
-        agent._dispatch_tool(
+        dispatch_tool(
             name="create_event_from_issue",
             arguments={
                 "issue_id": "42",

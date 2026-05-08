@@ -1,7 +1,7 @@
 """AI routes for handling assistant interactions."""
 
 import logging
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import Annotated
 
 from ai_client_api import AiClient
 from api.client import Client as IssueClient  # type: ignore[import-untyped]
@@ -11,9 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from google_calendar_service.deps import get_ai_client, get_calendar_client, get_issue_client
 from google_calendar_service.integrations.agent import run_ai_turn
 from google_calendar_service.models import AiRequest, AiResponseModel
-
-if TYPE_CHECKING:
-    from google_calendar_service.integrations.protocol import CalendarClientProtocol, IssueClientProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -29,15 +26,12 @@ def handle_ai(
 ) -> AiResponseModel:
     """Handle an AI prompt through the AI orchestration flow."""
     try:
-        cast_calendar_client = cast("CalendarClientProtocol", calendar_client)
-        cast_issue_client = cast("IssueClientProtocol", issue_client)
-
         answer = run_ai_turn(
             prompt=request.prompt,
             context=request.context,
             ai_client=ai_client,
-            calendar_client=cast_calendar_client,
-            issue_client=cast_issue_client,
+            calendar_client=calendar_client,
+            issue_client=issue_client,
         )
     except ValueError as exc:
         logger.info("AI route validation error: %s", exc)
