@@ -23,8 +23,10 @@ The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemet
 
 ### What is collected
 
+All metric and attribute names follow the [OpenTelemetry HTTP Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/http/http-metrics/).
+
 - **Traces** — one span per HTTP request, including route, method, status code, and latency. Provided automatically by `opentelemetry-instrumentation-fastapi`.
-- **Metrics** — custom `http.requests.total` counter (by method, route, status group) and `http.request.duration_seconds` histogram (by route) recorded by `MetricsMiddleware`.
+- **Metrics** — `http.server.request.duration` histogram (unit: seconds) with attributes `http.request.method`, `http.response.status_code`, `http.route`, and `url.scheme`. Provided automatically by `FastAPIInstrumentor`. Total request counts are derived from the histogram's implicit count.
 - **Logs** — Python `logging` output bridged into OTLP and correlated with the active trace.
 
 ### Dashboard Queries (Grafana Cloud → Explore → Prometheus)
@@ -32,21 +34,22 @@ The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemet
 Request latency by route:
 
 ```promql
-rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])
+rate(http_server_request_duration_seconds_sum[5m])
+/ rate(http_server_request_duration_seconds_count[5m])
 ```
 
 Success rate:
 
 ```promql
-100 * sum(rate(http_requests_total{status=~"2xx|3xx"}[5m]))
-/ sum(rate(http_requests_total[5m]))
+100 * sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"2.."}[5m]))
+/ sum(rate(http_server_request_duration_seconds_count[5m]))
 ```
 
 Failure rate:
 
 ```promql
-100 * sum(rate(http_requests_total{status=~"4xx|5xx"}[5m]))
-/ sum(rate(http_requests_total[5m]))
+100 * sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"[45].."}[5m]))
+/ sum(rate(http_server_request_duration_seconds_count[5m]))
 ```
 
 ### Architecture
@@ -70,15 +73,3 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 OTEL_RESOURCE_ATTRIBUTES=service.namespace=ospsd-team-11
 OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic%20<your-base64-token>
 ```
-
-Find these values in Grafana Cloud → My Account → your stack → OpenTelemetry → "Programmatic setup".
-
-## Local Development
-
-```bash
-docker compose -f monitoring/docker-compose.yml up --build
-```
-
-The app reads `.env` from the repo root, so telemetry works locally as long as the OTEL vars are set. Open the service at `http://localhost:8000`.
-
-Telemetry is visible in Grafana Cloud under **Explore → Tempo** (traces), **Explore → Prometheus** (metrics), and **Explore → Loki** (logs).

@@ -1,24 +1,28 @@
-"""Module for handling the integration with Google Calendar and OpenAI clients.
+"""Module for handling the integration with Google Calendar, OpenAI, and issue tracker clients.
 
-This module provides functions to get instances of CalendarClient and AiClient
-with necessary configurations and authentication tokens. It utilizes session
-data for OAuth token management and ensures that clients are properly authenticated
-before use.
+This module provides FastAPI dependency providers for CalendarClient, AiClient,
+and the shared issue-tracker Client. It utilizes session data for OAuth token
+management and ensures that clients are properly authenticated before use.
 
 Functions:
     - get_calendar_client: Fetches a CalendarClient instance with tokens
       acquired from the current user session.
     - get_ai_client: Returns an AiClient instance configured using OpenAI.
+    - get_issue_client: Returns an issue-tracker Client backed by Team 3's
+      deployed service via their ServiceClientAdapter.
 
 """
 
+import os
 from typing import Annotated
 from uuid import UUID
 
 from ai_client_api import AiClient
+from api.client import Client as IssueClient  # type: ignore[import-untyped]
 from calendar_client_api import CalendarClient
 from fastapi import Depends, HTTPException
 from google_calendar_client_impl import CredentialsToken, get_calendar_client_with_credentials
+from issue_tracker_client_adapter.adapter import ServiceClientAdapter  # type: ignore[import-untyped]
 from openai_ai_client_impl import get_openai_client
 from starlette import status
 
@@ -53,3 +57,10 @@ def get_calendar_client(
 def get_ai_client() -> AiClient:
     """Get an AiClient instance configured using OpenAI."""
     return get_openai_client()
+
+
+def get_issue_client() -> IssueClient:
+    """Get an issue-tracker Client backed by Team 3's deployed service."""
+    base_url = os.environ.get("ISSUE_TRACKER_SERVICE_URL", "")
+    session_id = os.environ.get("ISSUE_TRACKER_SESSION_ID")
+    return ServiceClientAdapter(base_url=base_url, session_id=session_id)

@@ -9,9 +9,6 @@ dependencies = [
     "openai",
 ]
 
-[tool.uv.sources]
-ai-client-api = { workspace = true }
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

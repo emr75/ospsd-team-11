@@ -8,10 +8,6 @@ dependencies = [
     "google-calendar-service-client",
 ]
 
-[tool.uv.sources]
-calendar-client-api = { workspace = true }
-google-calendar-service-client = { workspace = true }
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

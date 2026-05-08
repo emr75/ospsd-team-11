@@ -6,25 +6,12 @@ This page documents the `ai_client_api` package, which defines the provider-neut
 
 ## What this component contains
 
-- **Client interface**: `AiClient`, the abstract contract for sending prompts.
-- **Response models**: `AiResponse` and `AiToolCall` for natural language output and structured tool calls.
+- **Client interface**: `AiClient`, the abstract contract for single-turn prompts and provider-specific tool loops.
 - **Dependency injection registry**: `register_client` and `get_client` for selecting a concrete AI implementation at runtime.
 
 ## Client Contract
 
 ::: ai_client_api.client.AiClient
-    options:
-      show_root_heading: true
-      show_source: true
-
-## Response Models
-
-::: ai_client_api.client.AiResponse
-    options:
-      show_root_heading: true
-      show_source: true
-
-::: ai_client_api.client.AiToolCall
     options:
       show_root_heading: true
       show_source: true
@@ -47,11 +34,21 @@ This page documents the `ai_client_api` package, which defines the provider-neut
 from ai_client_api import get_client
 
 client = get_client()
-response = client.send_message(
+message = client.send_message(
     prompt="Schedule a team sync tomorrow at 3 PM",
     context={"timezone": "America/New_York"},
 )
 
-for tool_call in response.tool_calls:
-    print(tool_call.tool_name, tool_call.arguments)
+print(message)
+```
+
+Tool-calling workflows are driven by the service layer:
+
+```python
+answer = client.run_chat_with_tools(
+    system_prompt="Use tools only when needed.",
+    user_message="Find time for issue 123 tomorrow.",
+    tools=[...],
+    handle_tool=lambda name, arguments: "{}",
+)
 ```

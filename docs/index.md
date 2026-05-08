@@ -1,4 +1,13 @@
-# Welcome to the Calendar Client Project
-This project is a calendar client for a modern Python application, built using a component-based architecture with a clear separation between interface and implementation.
+# Calendar Client Platform
 
-This documentation site provides an overview of the project's architecture, API contracts, and usage guidelines.
+This project is a Python 3.13 `uv` workspace for provider-neutral calendar operations, a FastAPI Google Calendar service, and AI-assisted calendar/issue workflows.
+
+The system is composed of the following components:
+
+- `calendar_client_api` defines the calendar contract.
+- `google_calendar_client_impl` a Google Calendar implementation of the calendar contract.
+- `google_calendar_service` exposes calendar operations and AI workflows over HTTP.
+- `google_calendar_service_adapter` calls the HTTP service while still implementing the calendar contract.
+- `ai_client_api` and `openai_ai_client_impl` provide the AI abstraction used by the service's `/ai/` route.
+
+Use this documentation for architecture notes, component responsibilities, telemetry/IaC details, and API reference pages generated with `mkdocstrings`.

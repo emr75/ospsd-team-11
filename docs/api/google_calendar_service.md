@@ -8,11 +8,13 @@ This page documents the `google_calendar_service` package, which exposes Google 
 
 - **FastAPI app assembly** in `main.py`
 - **Authentication routes** (`/auth/login`, `/auth/callback`, `/auth/logout`)
-- **Event routes** (`/events/`, `/events/{event_id}`)
+- **Event routes** (`/events/`, `/events/between`, `/events/{event_id}`)
+- **AI route** (`/ai/`) for calendar and issue-tracker workflows
 - **Health route** (`/health`)
 - **OAuth utilities** (PKCE/state generation and token exchange)
 - **Session storage + verifier utilities**
 - **Request/response models** and conversion helpers
+- **OpenTelemetry setup** for traces, metrics, and logs
 
 ---
 
@@ -44,6 +46,13 @@ This page documents the `google_calendar_service` package, which exposes Google 
 ### Health Routes
 
 ::: google_calendar_service.routes.health_routes
+    options:
+      show_root_heading: true
+      show_source: true
+
+### AI Routes
+
+::: google_calendar_service.routes.ai_routes
     options:
       show_root_heading: true
       show_source: true
@@ -86,14 +95,36 @@ This page documents the `google_calendar_service` package, which exposes Google 
 
 ---
 
+## AI and Issue Tracker Integrations
+
+::: google_calendar_service.integrations.agent
+    options:
+      show_root_heading: true
+      show_source: true
+
+::: google_calendar_service.integrations.tools
+    options:
+      show_root_heading: true
+      show_source: true
+
+::: google_calendar_service.integrations.issue_to_calendar
+    options:
+      show_root_heading: true
+      show_source: true
+
+---
+
 ## Endpoint Summary
 
 - `GET /health` — service health check
+- `GET /` — redirect to `/docs`
 - `GET /auth/login` — starts OAuth flow and redirects
 - `GET /auth/callback` — validates state, exchanges code, stores tokens
 - `POST /auth/logout` — clears session/token state
 - `GET /events/` — list events
+- `GET /events/between` — list events in a datetime range
 - `GET /events/{event_id}` — fetch one event
 - `POST /events/` — create event
 - `PATCH /events/{event_id}` — partial update
 - `DELETE /events/{event_id}` — delete event
+- `POST /ai/` — run an AI-assisted calendar/issue workflow

@@ -6,9 +6,8 @@ Importing this package registers `OpenAiClient` with the `ai_client_api` depende
 
 ## What this component contains
 
-- **OpenAI provider adapter**: `OpenAiClient`, backed by the OpenAI Responses API.
-- **Tool definitions** for calendar and cross-service workflows.
-- **Response parser** that converts OpenAI message and function-call outputs into `AiResponse`.
+- **OpenAI provider adapter**: `OpenAiClient`, backed by the OpenAI Chat Completions API.
+- **Tool loop execution** that calls a service-provided tool handler and feeds results back to the model.
 - **Registration helpers** for dependency injection.
 
 ## Configuration
@@ -37,14 +36,20 @@ Importing this package registers `OpenAiClient` with the `ai_client_api` depende
 
 ## Tool Calling
 
-The implementation exposes tool definitions to the model so it can request structured actions. Current supported tool names include:
+The OpenAI implementation runs the model/tool loop. The service layer defines and dispatches tools in `google_calendar_service.integrations.tools`. Current service tool names include:
 
 - `create_event`
 - `list_events`
 - `update_event`
 - `create_event_from_issue`
+- `list_issue_boards`
+- `list_issues`
+- `get_issue`
+- `create_issue`
+- `update_issue`
+- `schedule_issue_work_session`
 
-The returned `AiResponse.tool_calls` list contains provider-neutral `AiToolCall` objects, so the service layer can map tool calls to calendar or cross-service workflows without depending on OpenAI SDK types.
+The service layer owns the provider-neutral tool definitions and dispatch, so the AI provider only runs the tool loop. Issue deletion is not exposed to the model. `schedule_issue_work_session` combines issue details with calendar availability to schedule the first open work slot in a user-provided time window.
 
 ## Usage
 
@@ -53,5 +58,5 @@ import openai_ai_client_impl  # Registers the OpenAI provider.
 from ai_client_api import get_client
 
 client = get_client()
-response = client.send_message("List my meetings tomorrow")
+message = client.send_message("List my meetings tomorrow")
 ```

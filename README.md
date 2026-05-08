@@ -1,10 +1,10 @@
-# Calendar Client Platform — OSPSD Team 11
+# Calendar Client Platform - OSPSD Team 11
 
 ## Purpose
 
 This project implements a Calendar Client. The interface defines a contract for calendar operations (creating, reading, updating, and deleting events), while the concrete implementation targets Google Calendar via its API, and an initial FastAPI service layer that exposes calendar functionality over HTTP. The system also includes an AI client layer that enables structured interaction with language models, including tool-calling support for cross-service workflows.
 
-You can use the same application-facing API in two ways:
+You can use the same application-facing API in three ways:
 
 1. **Direct implementation**: call Google Calendar directly (`google_calendar_client_impl`)
 2. **Service adapter**: call a deployed FastAPI service (`google_calendar_service_adapter` + `google_calendar_service_api_client`)
@@ -18,14 +18,15 @@ This keeps business logic decoupled from transport and provider details.
 
 This project follows a **ports/adapters architecture**:
 
-- **Ports (core contract)**: `calendar_client_api`, `ai_client_api`
+- **Ports (core contracts)**: `calendar_client_api`, `ai_client_api`
 - **Adapters**:
   - `google_calendar_client_impl` (direct Google API adapter)
   - `google_calendar_service_adapter` (HTTP adapter through deployed service)
   - `openai_ai_client_impl` (OpenAI-backed AI client adapter)
 - **FastAPI Service**: `google_calendar_service` (FastAPI app)
 - **Generated API Client**: `google_calendar_service_api_client`
-- **Telemetry**: Prometheus metrics exposed from `google_calendar_service` at `/metrics`
+- **Cross-vertical integration**: Team 3 issue-tracker service adapter used by the AI workflow
+- **Telemetry**: OpenTelemetry traces, metrics, and logs exported to Grafana Cloud via OTLP
 
 ---
 
@@ -44,7 +45,6 @@ This project follows a **ports/adapters architecture**:
 ├── tests/                                  # Integration + e2e tests
 ├── docs/                                   # MkDocs source
 ├── infra/                                  # Terraform-managed Render deployment
-├── monitoring/                             # Prometheus and Grafana observability stack
 ├── Dockerfile                              # uv-based multi-stage image
 ├── pyproject.toml                          # uv workspace config
 └── uv.lock                                 # locked dependency graph
@@ -79,7 +79,7 @@ uv sync --all-packages --extra dev
 | **uv** | Dependency & workspace management | `uv sync --all-packages --extra dev` |
 | **ruff** | Linting & formatting | `ruff check .` / `ruff format .` |
 | **mypy** | Static type checking (strict mode) | `mypy .` |
-| **pytest** | Test runner with coverage (≥ 85 % threshold) | `pytest` |
+| **pytest** | Test runner with coverage (>= 85% threshold) | `pytest` |
 | **MkDocs** | Documentation site | `mkdocs serve` / `mkdocs build` |
 | **CircleCI** | Continuous integration | Triggered on push (see `.circleci/config.yml`) |
 
@@ -133,7 +133,7 @@ uv run pytest -m unit
 uv run pytest -m integration
 
 # Run with coverage report
-uv run pytest --cov=components/calendar_client_api/src --cov=components/google_calendar_client_impl/src --cov=...
+uv run pytest --cov=components
 
 # Run a specific test file
 uv run pytest tests/integration/test_client_integration.py -v
@@ -141,25 +141,13 @@ uv run pytest tests/integration/test_client_integration.py -v
 
 ## Telemetry
 
-The FastAPI service exposes Prometheus-compatible metrics at:
+The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemetry.io/) SDK and exports **traces, metrics, and logs** directly to [Grafana Cloud](https://grafana.com/products/cloud/) via OTLP. Metric names follow the [HTTP Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/http/http-metrics/).
 
-```bash
-GET /metrics
-```
+- Request latency and total counts from the `http.server.request.duration` histogram.
+- Success rate from requests with `http.response.status_code` in 2xx.
+- Failure rate from requests with `http.response.status_code` in 4xx/5xx.
 
-The endpoint includes request latency histograms (`http_request_duration_seconds`) and request counters grouped by status (`http_requests_total`). A Prometheus/Grafana dashboard can derive:
-
-- Request latency from `http_request_duration_seconds`.
-- Success rate from 2xx `http_requests_total` samples.
-- Failure rate from 4xx/5xx `http_requests_total` samples.
-
-Run the local monitoring stack:
-
-```bash
-docker compose -f monitoring/docker-compose.yml up --build
-```
-
-Then open Grafana at `http://localhost:3000` and use the preloaded `Calendar Service Observability` dashboard. Terraform deployment details are in `infra/`, and the HW3 IaC/telemetry notes are documented in `docs/telemetry.md`.
+Telemetry is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. See `docs/telemetry.md` for setup instructions and PromQL queries.
 
 ### Linting and formatting
 
@@ -182,10 +170,12 @@ You can authenticate in two modes depending on adapter choice.
 Used when your app imports `google_calendar_client_impl` and calls `get_client()`.
 
 Set the direct Google auth environment variables (or `.env`):
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_CALENDAR_CLIENT_ID`
+- `GOOGLE_CALENDAR_CLIENT_SECRET`
+- `GOOGLE_CALENDAR_REFRESH_TOKEN`
+- `GOOGLE_CALENDAR_TOKEN_URI` (optional; defaults to Google's token endpoint)
 
-The credential/token files (e.g., `credentials.json`, `token.json`) may also be used by the implementation.
+The direct implementation can also use `token.json`, or run interactive OAuth from `credentials.json` when `interactive=True`.
 
 ### Service mode (`google_calendar_service`)
 
@@ -221,6 +211,13 @@ Optional:
 
 No OAuth flow is required. Authentication is handled via API key.
 
+### Issue Tracker Integration
+
+The AI workflow depends on Team 3's issue-tracker adapter through the shared issue-tracker API. Set:
+
+- `ISSUE_TRACKER_SERVICE_URL`
+- `ISSUE_TRACKER_SESSION_ID` (optional, when the issue tracker requires a session cookie)
+
 ---
 
 ## Running Locally
@@ -240,10 +237,12 @@ Service base URL (local): `http://127.0.0.1:8000`
 - `GET /auth/callback`
 - `POST /auth/logout`
 - `GET /events/`
+- `GET /events/between`
 - `GET /events/{event_id}`
 - `POST /events/`
 - `PATCH /events/{event_id}`
 - `DELETE /events/{event_id}`
+- `POST /ai/`
 
 ---
 
@@ -278,7 +277,7 @@ docker run --rm -p 8000:8000 \
 
 ### 3) Deploy to Render
 
-This step is automatically triggered by CircleCI.
+Render deployment is triggered by CircleCI's `deploy` job when the workflow runs on the configured branch and `RENDER_DEPLOY_HOOK` is available.
 
 ### 4) Set service URL
 
@@ -291,5 +290,7 @@ from google_calendar_service_adapter import register_service_calendar_client
 
 register_service_calendar_client(base_url="https://ospsd-team-11.onrender.com")
 ```
+
+The adapter can also read `CALENDAR_SERVICE_BASE_URL`, `CALENDAR_COOKIE_ID`, and `CALENDAR_COOKIE_VALUE` from the environment.
 
 ---

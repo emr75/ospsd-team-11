@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from google_calendar_service.deps import get_ai_client, get_calendar_client
+from google_calendar_service.deps import get_ai_client, get_calendar_client, get_issue_client
 from google_calendar_service.main import app
 
 HTTP_OK = 200
@@ -39,6 +39,7 @@ class TestAiRoutes:
         """Ensure the route returns the final AI response."""
         app.dependency_overrides[get_ai_client] = FakeAiClient
         app.dependency_overrides[get_calendar_client] = object
+        app.dependency_overrides[get_issue_client] = object
 
         response = client.post("/ai/", json={"prompt": "What can you do?"})
 

@@ -13,6 +13,7 @@ It exposes HTTP endpoints for:
 It translates HTTP requests/responses to and from the domain contracts defined in `calendar_client_api`, while delegating Google Calendar operations to `google_calendar_client_impl`.
 
 It also exposes AI-powered routes for processing natural language requests and mapping them to structured calendar operations via the `ai_client_api`.
+The AI route is backed by dependency-injected calendar, AI, and issue-tracker clients, so the agent can coordinate calendar operations with issue tracker data without depending on either provider's concrete SDK at the orchestration boundary.
 
 ---
 
@@ -27,6 +28,8 @@ It also exposes AI-powered routes for processing natural language requests and m
 | `fastapi-sessions` | Cookie-based session frontend/backend utilities |
 | `httpx` | Outbound HTTP calls (OAuth token exchange) |
 | `openai-ai-client-impl` | OpenAI-backed AI client used for AI routes |
+| `ospd-issue-tracker-api` | Shared vertical ABC for issue tracker integration ([repo](https://github.com/tatyanacthomas/ospd_issue_tracker)) |
+| `issue-tracker-client-adapter` | Team 3's service adapter implementing the shared issue-tracker ABC ([repo](https://github.com/yawnka/ospsd-team-03), `hw-3` branch) |
 | `opentelemetry-sdk` | OpenTelemetry SDK for traces, metrics, and logs |
 | `opentelemetry-instrumentation-fastapi` | Auto-instrumentation for FastAPI request spans |
 | `opentelemetry-exporter-otlp-proto-http` | OTLP/HTTP exporters for traces, metrics, and logs |
@@ -40,15 +43,19 @@ It also exposes AI-powered routes for processing natural language requests and m
 | Module | Responsibility |
 |--------|----------------|
 | `main.py` | Creates the FastAPI app and registers routers |
+| `deps.py` | FastAPI dependency providers (e.g. `get_calendar_client`) |
 | `settings.py` | Loads and validates OAuth/session configuration from environment |
 | `models.py` | Request/response DTOs and conversion helpers |
 | `oauth_utils.py` | PKCE/state generation and OAuth token exchange |
 | `session_store.py` | Session cookie frontend, backend, verifier, token/state helpers |
-| `otel.py` | OpenTelemetry provider setup (traces, metrics, logs) and `MetricsMiddleware` for per-request HTTP metrics |
+| `otel.py` | OpenTelemetry provider setup (traces, metrics, logs) |
 | `routes/ai_routes.py` | `/ai` endpoints for processing natural language requests and returning structured responses |
 | `routes/auth_routes.py` | `/auth/login`, `/auth/callback`, `/auth/logout` |
 | `routes/event_routes.py` | `/events` CRUD endpoints with authenticated session dependency |
 | `routes/health_routes.py` | `/health` endpoint |
+| `integrations/agent.py` | System prompt and AI tool-loop orchestration |
+| `integrations/tools.py` | Provider-neutral tool definitions and dispatch handlers for calendar, issue, and cross-service workflows |
+| `integrations/issue_to_calendar.py` | Shared issue-to-calendar event construction flow |
 
 ---
 
@@ -81,6 +88,7 @@ It also exposes AI-powered routes for processing natural language requests and m
 All event routes depend on a valid authenticated session with non-expired OAuth tokens.
 
 - `GET /events/` — list events (`max_results` query parameter, default `10`)
+- `GET /events/between` — list events between ISO 8601 `start` and `end` query parameters
 - `GET /events/{event_id}` — get one event
 - `POST /events/` — create event
 - `PATCH /events/{event_id}` — partial update
@@ -88,16 +96,25 @@ All event routes depend on a valid authenticated session with non-expired OAuth 
   ```json
   {"status": "deleted"}
   ```
-- `POST /ai/` — Accepts a natural language prompt and optional context, forwards it to the AI client, and returns a structured response including message text and any tool calls
+
+### AI
+
+- `POST /ai/` — Accepts a natural language prompt and optional context, forwards it to the AI client, and returns the final assistant message after any tool calls complete.
+
+The agent tool surface includes:
+
+- Calendar tools: `create_event`, `list_events`, `update_event`
+- Issue tracker tools: `list_issue_boards`, `list_issues`, `get_issue`, `create_issue`, `update_issue`
+- Cross-service tools: `create_event_from_issue`, `schedule_issue_work_session`
+
+`schedule_issue_work_session` fetches issue details, searches calendar events in a requested window, creates the issue work event in the first available slot, and can optionally move the issue to `in_progress`. Destructive issue operations such as delete are intentionally not exposed to the model.
 
 ### Telemetry
 
 The service emits OpenTelemetry **traces, metrics, and logs** over OTLP/HTTP. There is no scrape endpoint; signals are pushed to the configured OTLP collector backend.
 
 - **Traces**: FastAPI requests are auto-instrumented via `FastAPIInstrumentor`, producing one span per request plus a `service.startup` span at boot.
-- **Metrics** (recorded by `MetricsMiddleware` and exported on a periodic interval):
-  - `http.requests.total` — counter of HTTP requests, labeled with `method`, `route`, and `status` (e.g. `2xx`, `5xx`).
-  - `http.request.duration_seconds` — histogram of request latency in seconds, with the same labels.
+- **Metrics**: `http.server.request.duration` histogram (unit: seconds) with attributes `http.request.method`, `http.response.status_code`, `http.route`, and `url.scheme`, following the [OpenTelemetry HTTP Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/http/http-metrics/). Total request counts are derived from the histogram's implicit count.
 - **Logs**: Python logging is bridged to OTLP via `LoggingHandler`, so application logs are exported alongside traces and metrics.
 
 Telemetry is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` is not set.
@@ -133,12 +150,25 @@ Common variables:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (optional)
 
+### Issue Tracker (Team 3 cross-vertical integration)
+
+- `ISSUE_TRACKER_SERVICE_URL` — Base URL of Team 3's deployed issue tracker service (e.g. `https://ospsd-team-03.onrender.com`)
+- `ISSUE_TRACKER_SESSION_ID` (optional) — Session cookie value for authenticated requests
+
+### Adapter/Service Client
+
+These are used when this repo consumes the deployed service through `google_calendar_service_adapter`:
+
+- `CALENDAR_SERVICE_BASE_URL`
+- `CALENDAR_COOKIE_ID`
+- `CALENDAR_COOKIE_VALUE`
+
 ### Telemetry (OpenTelemetry)
 
 All variables are optional. If `OTEL_EXPORTER_OTLP_ENDPOINT` is unset, the service starts normally with telemetry disabled.
 
 - `OTEL_EXPORTER_OTLP_ENDPOINT` — OTLP/HTTP collector base URL (e.g. `https://otlp.example.com`)
-- `OTEL_EXPORTER_OTLP_HEADERS` — Authorization headers (e.g. `Authorization=Bearer …`) for the collector
+- `OTEL_EXPORTER_OTLP_HEADERS` — Authorization header (e.g. `Authorization=Basic%20<token>`)
 - `OTEL_SERVICE_NAME` — Service name attached to all signals (defaults via OTel resource detection)
 - Any other standard `OTEL_*` env vars accepted by the OpenTelemetry SDK
 
@@ -164,6 +194,9 @@ Component tests are in:
 - `components/google_calendar_service/tests/test_main.py`
 - `components/google_calendar_service/tests/test_oauth.py`
 - `components/google_calendar_service/tests/test_session_store.py`
+- `components/google_calendar_service/tests/test_agent.py`
+- `components/google_calendar_service/tests/test_ai_routes.py`
+- `components/google_calendar_service/tests/test_issue_to_calendar.py`
 
 Run:
 
