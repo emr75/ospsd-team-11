@@ -90,7 +90,17 @@ client = Client(base_url="http://localhost:8000")
 events = list_events_events_get.sync(client=client, max_results=10)
 ```
 
-For authenticated workflows requiring explicit token usage, use `AuthenticatedClient` instead.
+Calendar event routes use the FastAPI session cookie, not a bearer token. Pass the cookie to `Client`:
+
+```python
+from google_calendar_service_client import Client
+
+client = Client(
+    base_url="http://localhost:8000",
+    cookies={"google_calendar_session_id": "<session-cookie-value>"},
+    follow_redirects=True,
+)
+```
 
 ---
 

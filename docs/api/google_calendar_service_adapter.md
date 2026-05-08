@@ -64,6 +64,8 @@ Importing `google_calendar_service_adapter` auto-registers the adapter with defa
 
 - `http://localhost:8000`
 
+`CALENDAR_SERVICE_BASE_URL` overrides that default during auto-registration. `CALENDAR_COOKIE_ID` and `CALENDAR_COOKIE_VALUE` can be used to pass the FastAPI session cookie for authenticated event routes.
+
 So consumers can do:
 
 ```python

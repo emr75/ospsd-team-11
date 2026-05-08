@@ -73,15 +73,3 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 OTEL_RESOURCE_ATTRIBUTES=service.namespace=ospsd-team-11
 OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic%20<your-base64-token>
 ```
-
-Find these values in Grafana Cloud → My Account → your stack → OpenTelemetry → "Programmatic setup".
-
-## Local Development
-
-```bash
-docker compose -f monitoring/docker-compose.yml up --build
-```
-
-The app reads `.env` from the repo root, so telemetry works locally as long as the OTEL vars are set. Open the service at `http://localhost:8000`.
-
-Telemetry is visible in Grafana Cloud under **Explore → Tempo** (traces), **Explore → Prometheus** (metrics), and **Explore → Loki** (logs).
