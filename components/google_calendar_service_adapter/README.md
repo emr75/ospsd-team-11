@@ -25,7 +25,7 @@ This component lets consumers use `get_client()` and the same domain contract (`
 - Converts domain DTOs (`EventCreate`, `EventUpdate`) to generated request models.
 - Converts generated response models back to domain event objects.
 - Translates transport/service errors into domain exceptions (`AuthorizationError`, `EventNotFoundError`, `ValidationError`, `ServiceUnavailableError`, `CalendarClientError`).
-- Automatically registers itself on import using default base URL `http://localhost:8000`.
+- Automatically registers itself on import using default base URL `http://localhost:8000`, unless `CALENDAR_SERVICE_BASE_URL` is set.
 
 ## DI Auto-Registration
 
@@ -52,3 +52,8 @@ from google_calendar_service_adapter import register_service_calendar_client
 
 register_service_calendar_client(base_url="http://google-calendar-service:8000")
 ```
+
+Environment variables supported by auto-registration:
+
+- `CALENDAR_SERVICE_BASE_URL` overrides the default base URL.
+- `CALENDAR_COOKIE_ID` and `CALENDAR_COOKIE_VALUE` provide the service session cookie for authenticated calendar requests.

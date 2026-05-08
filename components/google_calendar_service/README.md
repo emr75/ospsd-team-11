@@ -88,6 +88,7 @@ The AI route is backed by dependency-injected calendar, AI, and issue-tracker cl
 All event routes depend on a valid authenticated session with non-expired OAuth tokens.
 
 - `GET /events/` — list events (`max_results` query parameter, default `10`)
+- `GET /events/between` — list events between ISO 8601 `start` and `end` query parameters
 - `GET /events/{event_id}` — get one event
 - `POST /events/` — create event
 - `PATCH /events/{event_id}` — partial update
@@ -153,6 +154,14 @@ Common variables:
 
 - `ISSUE_TRACKER_SERVICE_URL` — Base URL of Team 3's deployed issue tracker service (e.g. `https://ospsd-team-03.onrender.com`)
 - `ISSUE_TRACKER_SESSION_ID` (optional) — Session cookie value for authenticated requests
+
+### Adapter/Service Client
+
+These are used when this repo consumes the deployed service through `google_calendar_service_adapter`:
+
+- `CALENDAR_SERVICE_BASE_URL`
+- `CALENDAR_COOKIE_ID`
+- `CALENDAR_COOKIE_VALUE`
 
 ### Telemetry (OpenTelemetry)
 

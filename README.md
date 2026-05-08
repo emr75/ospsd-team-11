@@ -1,4 +1,4 @@
-# Calendar Client Platform — OSPSD Team 11
+# Calendar Client Platform - OSPSD Team 11
 
 ## Purpose
 
@@ -18,13 +18,14 @@ This keeps business logic decoupled from transport and provider details.
 
 This project follows a **ports/adapters architecture**:
 
-- **Ports (core contract)**: `calendar_client_api`, `ai_client_api`
+- **Ports (core contracts)**: `calendar_client_api`, `ai_client_api`
 - **Adapters**:
   - `google_calendar_client_impl` (direct Google API adapter)
   - `google_calendar_service_adapter` (HTTP adapter through deployed service)
   - `openai_ai_client_impl` (OpenAI-backed AI client adapter)
 - **FastAPI Service**: `google_calendar_service` (FastAPI app)
 - **Generated API Client**: `google_calendar_service_api_client`
+- **Cross-vertical integration**: Team 3 issue-tracker service adapter used by the AI workflow
 - **Telemetry**: OpenTelemetry traces, metrics, and logs exported to Grafana Cloud via OTLP
 
 ---
@@ -78,7 +79,7 @@ uv sync --all-packages --extra dev
 | **uv** | Dependency & workspace management | `uv sync --all-packages --extra dev` |
 | **ruff** | Linting & formatting | `ruff check .` / `ruff format .` |
 | **mypy** | Static type checking (strict mode) | `mypy .` |
-| **pytest** | Test runner with coverage (≥ 85 % threshold) | `pytest` |
+| **pytest** | Test runner with coverage (>= 85% threshold) | `pytest` |
 | **MkDocs** | Documentation site | `mkdocs serve` / `mkdocs build` |
 | **CircleCI** | Continuous integration | Triggered on push (see `.circleci/config.yml`) |
 
@@ -132,7 +133,7 @@ uv run pytest -m unit
 uv run pytest -m integration
 
 # Run with coverage report
-uv run pytest --cov=components/calendar_client_api/src --cov=components/google_calendar_client_impl/src --cov=...
+uv run pytest --cov=components
 
 # Run a specific test file
 uv run pytest tests/integration/test_client_integration.py -v
@@ -169,10 +170,12 @@ You can authenticate in two modes depending on adapter choice.
 Used when your app imports `google_calendar_client_impl` and calls `get_client()`.
 
 Set the direct Google auth environment variables (or `.env`):
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_CALENDAR_CLIENT_ID`
+- `GOOGLE_CALENDAR_CLIENT_SECRET`
+- `GOOGLE_CALENDAR_REFRESH_TOKEN`
+- `GOOGLE_CALENDAR_TOKEN_URI` (optional; defaults to Google's token endpoint)
 
-The credential/token files (e.g., `credentials.json`, `token.json`) may also be used by the implementation.
+The direct implementation can also use `token.json`, or run interactive OAuth from `credentials.json` when `interactive=True`.
 
 ### Service mode (`google_calendar_service`)
 
@@ -208,6 +211,13 @@ Optional:
 
 No OAuth flow is required. Authentication is handled via API key.
 
+### Issue Tracker Integration
+
+The AI workflow depends on Team 3's issue-tracker adapter through the shared issue-tracker API. Set:
+
+- `ISSUE_TRACKER_SERVICE_URL`
+- `ISSUE_TRACKER_SESSION_ID` (optional, when the issue tracker requires a session cookie)
+
 ---
 
 ## Running Locally
@@ -227,6 +237,7 @@ Service base URL (local): `http://127.0.0.1:8000`
 - `GET /auth/callback`
 - `POST /auth/logout`
 - `GET /events/`
+- `GET /events/between`
 - `GET /events/{event_id}`
 - `POST /events/`
 - `PATCH /events/{event_id}`
@@ -266,7 +277,7 @@ docker run --rm -p 8000:8000 \
 
 ### 3) Deploy to Render
 
-This step is automatically triggered by CircleCI.
+Render deployment is triggered by CircleCI's `deploy` job when the workflow runs on the configured branch and `RENDER_DEPLOY_HOOK` is available.
 
 ### 4) Set service URL
 
@@ -279,5 +290,7 @@ from google_calendar_service_adapter import register_service_calendar_client
 
 register_service_calendar_client(base_url="https://ospsd-team-11.onrender.com")
 ```
+
+The adapter can also read `CALENDAR_SERVICE_BASE_URL`, `CALENDAR_COOKIE_ID`, and `CALENDAR_COOKIE_VALUE` from the environment.
 
 ---
