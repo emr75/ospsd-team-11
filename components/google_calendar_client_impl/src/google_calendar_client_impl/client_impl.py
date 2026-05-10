@@ -15,7 +15,7 @@ from google.auth.exceptions import GoogleAuthError, RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore[import-untyped] # no py.typed
-from googleapiclient.discovery import Resource, build  # type: ignore[import-untyped] # no py.typed
+from googleapiclient.discovery import Resource, build
 from ospsd_calendar_api import CalendarClient as SharedCalendarClient
 from ospsd_calendar_api import Event as SharedEvent
 

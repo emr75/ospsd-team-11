@@ -4,9 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = [
-    "ospd-issue-tracker-api",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
@@ -46,7 +44,6 @@ ospsd-calendar-api = { git = "https://github.com/DeMoliT1on/ospsd-calendar-api",
 ospd-issue-tracker-api = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git", branch = "main" }
 issue-tracker-client-adapter = { git = "https://github.com/yawnka/ospsd-team-03.git", branch = "hw-3", subdirectory = "components/issue_tracker_client_adapter" }
 issue-tracker-client-api = { git = "https://github.com/yawnka/ospsd-team-03.git", branch = "hw-3", subdirectory = "components/issue_tracker_client_api" }
-issue-tracker-client-service-client = { git = "https://github.com/yawnka/ospsd-team-03.git", branch = "hw-3", subdirectory = "components/issue_tracker_client_service_client" }
 
 
 [tool.ruff]
@@ -90,22 +87,14 @@ mypy_path = [
     "components/google_calendar_service_adapter/src",
     "components/openai_ai_client_impl/src",
 ]
-ignore_missing_imports = false
-warn_unused_ignores = false
 exclude = [
     "components/google_calendar_service_api_client", # Exclude generated client code from type checking
 ]
 
-#[[tool.mypy.overrides]]
-#module = [
-#    "google.*",
-#    "googleapiclient.*",
-#    "api.*",                              # shared issue-tracker vertical ABC (no py.typed)
-#    "issue_tracker_client_adapter.*",     # Team 3 adapter (no py.typed)
-#    "issue_tracker_client_api.*",         # Team 3 client API (no py.typed)
-#    "issue_tracker_client_service_client.*",  # Team 3 generated client (no py.typed)
-#]
-#ignore_missing_imports = true
+# NOTE: The issue-tracker packages (api.*, issue_tracker_client_adapter.*, etc.)
+# do not ship a py.typed marker. Rather than a blanket module-level override here,
+# we use narrowly scoped `# type: ignore[import-untyped]` at each import site with
+# an inline comment explaining the reason. This keeps mypy strict everywhere else.
 
 [tool.pytest.ini_options]
 #pythonpath = [ # should rely on uv to manage dependencies instead of pythonpath tricks

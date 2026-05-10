@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from ai_client_api import AiClient
-from api.issue import Status  # type: ignore[import-untyped]
+from api.issue import Status  # type: ignore[import-untyped] # The issue-tracker package does not ship a py.typed marker
 from calendar_client_api import Attendee, CalendarClient, Event, EventCreate, EventUpdate
 from google_calendar_service.integrations import agent
 from google_calendar_service.integrations.tools import dispatch_tool
@@ -18,7 +18,7 @@ from google_calendar_service.integrations.tools import dispatch_tool
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from api.issue import Issue  # type: ignore[import-untyped]
+    from api.issue import Issue
 
 
 @dataclass

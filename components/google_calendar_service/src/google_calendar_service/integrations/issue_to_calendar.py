@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from calendar_client_api import EventCreate
 
 if TYPE_CHECKING:
+    # The issue-tracker package does not ship a py.typed marker.
     from api.client import Client as IssueClient  # type: ignore[import-untyped]
     from api.issue import Issue  # type: ignore[import-untyped]
     from calendar_client_api import CalendarClient

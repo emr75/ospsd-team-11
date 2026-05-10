@@ -4,6 +4,8 @@ import logging
 from typing import Annotated
 
 from ai_client_api import AiClient
+
+# The issue-tracker package does not ship a py.typed marker.
 from api.client import Client as IssueClient  # type: ignore[import-untyped]
 from calendar_client_api import CalendarClient
 from fastapi import APIRouter, Depends, HTTPException, status

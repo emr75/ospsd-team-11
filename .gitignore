@@ -1,6 +1,6 @@
 #terraform
-terraform.tfvars
-terraform.tfstate
+*.tfvars
+*.tfstate
 .terraform/
 
 # Python-generated files

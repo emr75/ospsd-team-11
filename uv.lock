@@ -1225,9 +1225,6 @@ source = { git = "https://github.com/DeMoliT1on/ospsd-calendar-api?branch=main#e
 name = "ospsd-team-11"
 version = "0.1.0"
 source = { virtual = "." }
-dependencies = [
-    { name = "ospd-issue-tracker-api" },
-]
 
 [package.optional-dependencies]
 dev = [
@@ -1250,7 +1247,6 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.7.3" },
     { name = "mkdocstrings-python", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.17.0" },
-    { name = "ospd-issue-tracker-api", git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git?branch=main" },
     { name = "pymdown-extensions", marker = "extra == 'dev'", specifier = ">=10.16.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.2.1" },

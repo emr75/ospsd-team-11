@@ -11,7 +11,7 @@ from calendar_client_api import Attendee, CalendarClient, Event, EventCreate, Ev
 from google_calendar_service.integrations import issue_to_calendar
 
 if TYPE_CHECKING:
-    from api.issue import Issue  # type: ignore[import-untyped]
+    from api.issue import Issue  # type: ignore[import-untyped] # The issue-tracker package does not ship a py.typed marker
 
 ISSUE_ID = "123"
 

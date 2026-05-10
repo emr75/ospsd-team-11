@@ -2,7 +2,7 @@
 
 This page documents the `google_calendar_service` package, which exposes Google Calendar capabilities via FastAPI routes.
 
-`google_calendar_service` acts as the HTTP service boundary in the project’s ports/adapters architecture. It translates incoming API requests into domain operations and returns typed response envelopes.
+`google_calendar_service` acts as the HTTP service boundary in the project's interface/implementation architecture. It translates incoming API requests into domain operations and returns typed response envelopes.
 
 ## What this component contains
 

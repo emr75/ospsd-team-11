@@ -68,6 +68,6 @@ uv run mkdocs build
 When changing public APIs, routes, environment variables, or component responsibilities, update the matching files:
 
 - root `README.md`
-- root `design.md`
+- root `DESIGN.md`
 - affected `components/*/README.md`
 - affected pages under `docs/`

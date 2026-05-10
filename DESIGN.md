@@ -72,6 +72,39 @@ Only the imported implementation package changes. The registered DI factory swit
 
 ---
 
+## Repository and Tooling Alignment
+
+### Repository Process
+
+The repository keeps the inherited project structure:
+
+- implementation packages live under `components/`
+- component-local unit tests live under each component's `tests/`
+- integration and e2e tests live under root `tests/`
+- documentation lives under `docs/` plus root `README.md` and `DESIGN.md`
+- deployment configuration lives under `infra/`
+- PR and issue templates live under `.github/`
+
+The PR template explicitly asks reviewers to confirm the `hw-3` target branch, commit hygiene, repository layout, workspace membership, root-only lint/type configuration, and shared-interface impact.
+
+### Tooling Configuration
+
+The root `pyproject.toml` owns workspace membership, ruff configuration, mypy configuration, pytest markers, and coverage thresholds.
+
+Current workspace members:
+
+- `components/ai_client_api`
+- `components/calendar_client_api`
+- `components/google_calendar_client_impl`
+- `components/google_calendar_service`
+- `components/google_calendar_service_api_client`
+- `components/google_calendar_service_adapter`
+- `components/openai_ai_client_impl`
+
+Generated code under `components/google_calendar_service_api_client` is excluded from ruff and mypy at the root because it is OpenAPI-generated. Team 3 packages do not ship `py.typed`, so import sites use narrowly scoped `# type: ignore[import-untyped]` comments instead of disabling strict type checking globally.
+
+---
+
 ## Component A: `calendar_client_api`
 
 ### Responsibility
@@ -517,3 +550,167 @@ CircleCI installs the workspace with `uv`, then runs:
 - optional Render deployment through `RENDER_DEPLOY_HOOK`
 
 Coverage has a project threshold of 85%.
+
+---
+
+## Cross-Vertical Integration
+
+### Choice of Vertical
+
+We integrate with the **issue-tracker vertical** (Team 3's Trello-backed service). Calendar and issue tracking are natural complements: users schedule meetings about issues, block focus time for ticket work, and track issue status alongside their calendar.
+
+### Dependency Wiring
+
+Team 3 publishes two packages:
+
+| Package | Purpose |
+|---------|---------|
+| `ospd-issue-tracker-api` | Shared ABC (`Client`) with domain types (`Issue`, `Board`, `Status`) |
+| `issue-tracker-client-adapter` | `ServiceClientAdapter` that calls Team 3's deployed HTTP service |
+
+Both are declared as Git sources in root `pyproject.toml`:
+
+```toml
+ospd-issue-tracker-api = { git = "...", branch = "main" }
+issue-tracker-client-adapter = { git = "...", branch = "hw-3", subdirectory = "components/issue_tracker_client_adapter" }
+```
+
+The adapter is injected via FastAPI's `Depends()` in `deps.py`. The issue-tracker client is constructed from `ISSUE_TRACKER_SERVICE_URL` and an optional `ISSUE_TRACKER_SESSION_ID` environment variable.
+
+### Type Checking
+
+Team 3's packages do not ship a `py.typed` marker, so mypy treats them as untyped. Each import site uses a narrowly scoped `# type: ignore[import-untyped]` with an inline comment explaining the reason, rather than a blanket module-level exclusion.
+
+---
+
+## Observability Strategy
+
+### Instrumentation
+
+The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemetry.io/) SDK. The `otel.py` module configures three signal pipelines — traces, metrics, and logs — each exported via OTLP/HTTP to Grafana Cloud.
+
+| Signal | Source | Backend |
+|--------|--------|---------|
+| Traces | `FastAPIInstrumentor` auto-instrumentation | Grafana Tempo |
+| Metrics | `http.server.request.duration` histogram (HTTP Semantic Conventions) | Grafana Prometheus |
+| Logs | Python `logging` bridged into OTLP, correlated with active trace | Grafana Loki |
+
+### Key Metrics
+
+- **Request latency**: derived from the `http.server.request.duration` histogram, broken down by route, method, and status code.
+- **Success rate**: ratio of 2xx responses to total requests.
+- **Failure rate**: ratio of 4xx/5xx responses to total requests, distinguishing client errors (domain validation) from server errors (infrastructure failures).
+
+### Deployment
+
+Telemetry is configured entirely through standard OTEL environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`, etc.). The app exports directly to Grafana Cloud — no collector sidecar is needed. If `OTEL_EXPORTER_OTLP_ENDPOINT` is unset, telemetry is silently disabled and the service starts normally.
+
+### Dashboard
+
+The Grafana Cloud dashboard visualizes latency percentiles, success/failure rates, and per-route breakdowns. See `docs/telemetry.md` for PromQL queries.
+
+---
+
+## Adaptation Plan: Standardized `ospsd-calendar-api` Interface
+
+### Context
+
+The shared `ospsd-calendar-api` package defines a cross-team standardized calendar interface. Our codebase already has its own local interface (`calendar_client_api`) from the first calendar implementation. This section describes how we adapted our implementation to satisfy the standardized contract while preserving backward compatibility with our existing call sites.
+
+The shared interface lives in its own package. It uses Python ABCs and provider-agnostic domain types. Our implementation consumes that package as a Git dependency and makes `GoogleCalendarClient` satisfy the shared contract.
+
+### Interface Comparison
+
+| Aspect | Local `calendar_client_api` | Shared `ospsd-calendar-api` |
+|--------|---------------------------|----------------------------|
+| Event model | Abstract `Event` ABC with `@property` methods | Concrete `Event` dataclass |
+| Extra fields | `attendees`, `attachments` | Not present |
+| Create API | `create_event_from_dto(EventCreate)` | `create_event(title, start_time, end_time, ...)` |
+| Read (single) | `get_event_by_id(event_id)` | `get_event(event_id)` |
+| Read (range) | `list_events_between(start, end)` | `list_events(start, end)` |
+| Read (upcoming) | `list_upcoming_events(max_results)` | Not present |
+| Update API | `update_event_from_patch(event_id, EventUpdate)` with `UNSET` sentinel | `update_event(event_id, *, title=None, ...)` with `None` = unchanged |
+| Delete API | `delete_event(event_id)` | `delete_event(event_id)` (identical) |
+| Exception hierarchy | `CalendarClientError` → `EventNotFoundError`, `AuthorizationError`, `ValidationError`, `ServiceUnavailableError` | `CalendarError` → `EventNotFoundError`, `CalendarOperationError` |
+
+### Approach: Dual-Interface Implementation
+
+Since our local interface is essentially a richer superset of the shared interface, we have `GoogleCalendarClient` extend both ABCs:
+
+```python
+from calendar_client_api import CalendarClient
+from ospsd_calendar_api import CalendarClient as SharedCalendarClient
+
+class GoogleCalendarClient(CalendarClient, SharedCalendarClient):
+    ...
+```
+
+The five shared-interface methods are implemented as thin adapters that delegate to the existing local-interface methods:
+
+| Shared method | Delegates to |
+|---------------|-------------|
+| `list_events(start, end)` | `list_events_between(start, end)` + event conversion |
+| `get_event(event_id)` | `get_event_by_id(event_id)` + event conversion |
+| `create_event(title, start_time, ...)` | `create_event_from_dto(EventCreate(...))` + event conversion |
+| `update_event(event_id, *, title, ...)` | `update_event_from_patch(event_id, EventUpdate(...))` + event conversion |
+| `delete_event(event_id)` | Identical signature, shared directly through MRO |
+
+### Event Model Conversion
+
+The local `Event` is an abstract ABC with property methods, while the shared `Event` is a concrete frozen dataclass. A private `_event_to_shared_event` function bridges the two:
+
+```python
+def _event_to_shared_event(event: Event) -> SharedEvent:
+    return SharedEvent(
+        id=event.id,
+        title=event.title,
+        start_time=event.start_time,
+        end_time=event.end_time,
+        description=event.description,
+        location=event.location,
+    )
+```
+
+The `attendees` and `attachments` fields from the local model are dropped during conversion because the shared contract does not include them.
+
+### Update Semantics Translation
+
+The shared interface uses `None` to mean "don't change this field," while the local interface uses an `UNSET` sentinel for the same purpose (allowing `None` to explicitly clear a field). The adapter translates between the two conventions:
+
+```python
+def update_event(self, event_id, *, title=None, ...):
+    patch = EventUpdate(
+        title=UNSET if title is None else title,
+        ...
+    )
+    event = self.update_event_from_patch(event_id, patch)
+    return _event_to_shared_event(event)
+```
+
+This means the shared interface cannot express "set description to null" — only "don't change it." This is an acceptable limitation because the shared contract does not distinguish the two cases.
+
+### Breaking Changes to Call Sites
+
+No existing call sites break. All changes are additive:
+
+1. **`GoogleCalendarClient` class declaration** — added `SharedCalendarClient` as a second base class. Existing code that uses `CalendarClient` (the local ABC) is unaffected because the new base class adds methods rather than removing them.
+
+2. **New methods on the implementation** — `list_events`, `get_event`, `create_event`, and `update_event` are new methods that did not exist before. They do not shadow any local-interface method because we deliberately named the local methods differently (`list_events_between`, `get_event_by_id`, `create_event_from_dto`, `update_event_from_patch`).
+
+3. **`delete_event` signature** — both interfaces define `delete_event(event_id: str) -> None` with compatible signatures. Python MRO resolves this without conflict.
+
+4. **New dependency** — `ospsd-calendar-api` is added to `google_calendar_client_impl`'s dependencies in `pyproject.toml`. This is a build-time addition, not a runtime behavior change.
+
+5. **Exception mapping** — callers using the shared interface receive `CalendarOperationError` or `EventNotFoundError` from `ospsd_calendar_api.exceptions`. Internal call sites using the local interface still receive exceptions from `calendar_client_api.exceptions`. Both hierarchies coexist.
+
+### What Is Not Covered by the Shared Interface
+
+| Local-only capability | Why it is retained |
+|-----------------------|-------------------|
+| `list_upcoming_events(max_results)` | Used by the AI agent tools for quick "what's next" queries without specifying a date range |
+| `Attendee` / `attendees` field | Used by `EventCreate` for meeting invitations; the shared contract omits attendees |
+| `attachments` field | Used by `EventCreate` for Google Calendar file attachments |
+| `UNSET` sentinel on `EventUpdate` | Allows "set to None" vs "don't change" distinction for partial updates |
+| `ServiceCalendarClient` (adapter) | Service-backed implementation that talks to the FastAPI service over HTTP; uses the local interface only |
+
+These capabilities remain available through the local `CalendarClient` interface. Cross-team code that only needs the standardized operations uses `SharedCalendarClient`.

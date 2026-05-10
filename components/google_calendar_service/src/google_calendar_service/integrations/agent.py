@@ -9,6 +9,8 @@ from google_calendar_service.integrations.tools import TOOLS, make_tool_handler
 
 if TYPE_CHECKING:
     from ai_client_api import AiClient
+
+    # The issue-tracker package does not ship a py.typed marker.
     from api.client import Client as IssueClient  # type: ignore[import-untyped]
     from calendar_client_api import CalendarClient
 

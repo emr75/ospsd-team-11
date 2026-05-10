@@ -4,10 +4,10 @@
 
 ## Role
 
-This component is the **service-backed adapter** in the ports/adapters architecture:
+This component is the **service-backed implementation** in the interface/implementation architecture:
 
-- **Port**: `calendar_client_api.CalendarClient`
-- **Adapter**: `google_calendar_service_adapter.ServiceCalendarClient`
+- **Interface**: `calendar_client_api.CalendarClient`
+- **Implementation**: `google_calendar_service_adapter.ServiceCalendarClient`
 - **Transport client**: `google_calendar_service_client` (generated from OpenAPI)
 
 It allows application code to keep using `get_client()` and domain models while delegating execution to a remote service.

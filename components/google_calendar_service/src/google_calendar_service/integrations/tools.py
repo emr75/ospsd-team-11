@@ -8,7 +8,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from api.issue import Status  # type: ignore[import-untyped]
+from api.issue import Status  # type: ignore[import-untyped] # The issue-tracker package does not ship a py.typed marker
 from calendar_client_api import EventCreate, EventUpdate
 from calendar_client_api.event import UNSET
 
@@ -19,7 +19,7 @@ from google_calendar_service.integrations.issue_to_calendar import (
 if TYPE_CHECKING:
     from api.board import Board  # type: ignore[import-untyped]
     from api.client import Client as IssueClient  # type: ignore[import-untyped]
-    from api.issue import Issue  # type: ignore[import-untyped]
+    from api.issue import Issue
     from calendar_client_api import CalendarClient, Event
 
 logger = logging.getLogger(__name__)

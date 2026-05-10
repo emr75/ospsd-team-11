@@ -18,11 +18,13 @@ from typing import Annotated
 from uuid import UUID
 
 from ai_client_api import AiClient
+
+# The issue-tracker package does not ship a py.typed marker.
 from api.client import Client as IssueClient  # type: ignore[import-untyped]
 from calendar_client_api import CalendarClient
 from fastapi import Depends, HTTPException
 from google_calendar_client_impl import CredentialsToken, get_calendar_client_with_credentials
-from issue_tracker_client_adapter.adapter import ServiceClientAdapter  # type: ignore[import-untyped]
+from issue_tracker_client_adapter.adapter import ServiceClientAdapter
 from openai_ai_client_impl import get_openai_client
 from starlette import status
 
