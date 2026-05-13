@@ -4,7 +4,19 @@
 
 The service infrastructure is managed with Terraform in `infra/`.
 
-Terraform provisions the Render web service, configures Docker deployment from the repository, sets the service health check, and manages application environment variables. The deployed service exposes the FastAPI application from the repository `Dockerfile`.
+Terraform provisions the Render web service, configures Docker deployment from the repository, sets the service health check, and manages **non-secret** application environment variables. Secret env vars (API keys, OAuth secrets, tokens) are set manually in the Render dashboard so they never appear in the Terraform state file.
+
+Secrets to configure in Render:
+
+- `GOOGLE_CALENDAR_CLIENT_ID`
+- `GOOGLE_CALENDAR_CLIENT_SECRET`
+- `GOOGLE_CALENDAR_REFRESH_TOKEN`
+- `GOOGLE_CALENDAR_SESSION_SECRET`
+- `CALENDAR_COOKIE_VALUE`
+- `OPENAI_API_KEY`
+- `ISSUE_TRACKER_SERVICE_URL`
+- `ISSUE_TRACKER_SESSION_ID`
+- `OTEL_EXPORTER_OTLP_HEADERS`
 
 Typical workflow:
 
@@ -13,6 +25,7 @@ cd infra
 terraform init
 terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars
+# Then set the secret env vars listed above in the Render dashboard
 ```
 
 Use `infra/terraform.tfvars.example` as the template for the real variable file. Do not commit real secrets.

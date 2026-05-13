@@ -274,7 +274,7 @@ If `OTEL_EXPORTER_OTLP_ENDPOINT` is unset, telemetry is disabled and the service
 
 The service runs from the root `Dockerfile` with Uvicorn on port 8000. The Dockerfile uses a multi-stage build with `uv` to install the `google-calendar-service` package and runtime dependencies.
 
-Terraform in `infra/` manages the Render web service, health check path, and environment variables. CircleCI runs linting, type checking, tests, and can trigger Render deployment through `RENDER_DEPLOY_HOOK`.
+Terraform in `infra/` manages the Render web service, health check path, and non-secret environment variables. Secret env vars (API keys, OAuth secrets, tokens) are set manually in the Render dashboard to keep them out of the Terraform state file. CircleCI runs linting, type checking, tests, and can trigger Render deployment through `RENDER_DEPLOY_HOOK`.
 
 Important runtime environment variables:
 

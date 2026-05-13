@@ -177,20 +177,21 @@ Available cross-service tools:
 
 ## Infrastructure as Code (IaC)
 
-Terraform configuration lives in `infra/` and provisions the Render web service, health check, and environment variables.
+Terraform configuration lives in `infra/` and provisions the Render web service, health check, and **non-secret** environment variables. Secret env vars are set manually in the Render dashboard so they never appear in the Terraform state file.
 
 ### Bootstrap
 
 ```bash
 cd infra
 cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with real values (API keys, OAuth secrets, etc.)
+# Edit terraform.tfvars with non-secret config values
 terraform init
 terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars
+# Then set secret env vars in Render
 ```
 
-See `infra/terraform.tfvars.example` for the full list of required variables. Never commit `terraform.tfvars` — it is gitignored.
+See `infra/terraform.tfvars.example` for the full list of required variables and which secrets must be set in Render. Never commit `terraform.tfvars` — it is gitignored.
 
 ### Linting and formatting
 
