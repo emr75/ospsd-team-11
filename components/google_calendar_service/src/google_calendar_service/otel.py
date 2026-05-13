@@ -5,7 +5,11 @@ Metrics follow the `OpenTelemetry HTTP Semantic Conventions
 ``FastAPIInstrumentor`` automatically records the stable
 ``http.server.request.duration`` histogram with attributes
 ``http.request.method``, ``http.response.status_code``, ``http.route``,
-and ``url.scheme``.  No custom middleware is needed.
+and ``url.scheme``.
+
+A first-class ``chat.request.status_class`` counter tracks every
+``/ai/`` request with a ``status_class`` label of ``ok``,
+``domain_error``, or ``infra_error`` for dashboards and alerting.
 """
 
 from __future__ import annotations
@@ -27,6 +31,14 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 log: Any = logging.getLogger(__name__)
+
+_meter = metrics.get_meter("google-calendar-service")
+
+chat_request_status_counter = _meter.create_counter(
+    name="chat.request.status_class",
+    description="Count of /ai/ chat requests by outcome class",
+    unit="{request}",
+)
 
 
 def configure_opentelemetry() -> None:

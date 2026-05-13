@@ -26,7 +26,9 @@ The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemet
 All metric and attribute names follow the [OpenTelemetry HTTP Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/http/http-metrics/).
 
 - **Traces** — one span per HTTP request, including route, method, status code, and latency. Provided automatically by `opentelemetry-instrumentation-fastapi`.
-- **Metrics** — `http.server.request.duration` histogram (unit: seconds) with attributes `http.request.method`, `http.response.status_code`, `http.route`, and `url.scheme`. Provided automatically by `FastAPIInstrumentor`. Total request counts are derived from the histogram's implicit count.
+- **Metrics**
+  - `http.server.request.duration` histogram (unit: seconds) with attributes `http.request.method`, `http.response.status_code`, `http.route`, and `url.scheme`. Provided automatically by `FastAPIInstrumentor`. Total request counts are derived from the histogram's implicit count.
+  - `chat.request.status_class` counter (unit: `{request}`) with attribute `status_class` ∈ {`ok`, `domain_error`, `infra_error`}. Incremented on every `/ai/` request to provide a first-class success/failure signal for dashboards and alerting.
 - **Logs** — Python `logging` output bridged into OTLP and correlated with the active trace.
 
 ### Dashboard Queries (Grafana Cloud → Explore → Prometheus)
@@ -38,14 +40,27 @@ rate(http_server_request_duration_seconds_sum[5m])
 / rate(http_server_request_duration_seconds_count[5m])
 ```
 
-Success rate:
+Chat success rate (first-class counter):
+
+```promql
+100 * sum(rate(chat_request_status_class_total{status_class="ok"}[5m]))
+/ sum(rate(chat_request_status_class_total[5m]))
+```
+
+Chat failure rate by class (first-class counter):
+
+```promql
+sum by (status_class) (rate(chat_request_status_class_total{status_class=~"domain_error|infra_error"}[5m]))
+```
+
+HTTP-level success rate (query-derived from histogram):
 
 ```promql
 100 * sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"2.."}[5m]))
 / sum(rate(http_server_request_duration_seconds_count[5m]))
 ```
 
-Failure rate:
+HTTP-level failure rate (query-derived from histogram):
 
 ```promql
 100 * sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"[45].."}[5m]))
