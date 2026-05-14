@@ -36,7 +36,8 @@ docker_command         = ""
 otel_service_name           = "google-calendar-service"
 otel_exporter_otlp_endpoint = "https://otlp-gateway-prod-<region>.grafana.net/otlp"
 otel_exporter_otlp_protocol = "http/protobuf"
-otel_resource_attributes    = "service.namespace=ospsd-team-11"
+otel_resource_attributes       = "service.namespace=ospsd-team-11"
+otel_semconv_stability_opt_in  = "http"
 
 # ===== Secrets — set these directly in the Render dashboard =====
 # The following env vars must be configured directly under Render
