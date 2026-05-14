@@ -1,0 +1,70 @@
+"""AI routes for handling assistant interactions."""
+
+import logging
+from typing import Annotated
+
+from ai_client_api import AiClient
+
+# The issue-tracker package does not ship a py.typed marker.
+from api.client import Client as IssueClient  # type: ignore[import-untyped]
+from calendar_client_api import CalendarClient
+from fastapi import APIRouter, Depends, HTTPException, status
+from openai import RateLimitError
+
+from google_calendar_service.deps import get_ai_client, get_calendar_client, get_issue_client
+from google_calendar_service.integrations.agent import run_ai_turn
+from google_calendar_service.models import AiRequest, AiResponseModel
+from google_calendar_service.otel import chat_request_status_counter
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/ai", tags=["ai"])
+
+
+@router.post("/")
+def handle_ai(
+    request: AiRequest,
+    ai_client: Annotated[AiClient, Depends(get_ai_client)],
+    calendar_client: Annotated[CalendarClient, Depends(get_calendar_client)],
+    issue_client: Annotated[IssueClient, Depends(get_issue_client)],
+) -> AiResponseModel:
+    """Handle an AI prompt through the AI orchestration flow."""
+    try:
+        answer = run_ai_turn(
+            prompt=request.prompt,
+            context=request.context,
+            ai_client=ai_client,
+            calendar_client=calendar_client,
+            issue_client=issue_client,
+        )
+    except ValueError as exc:
+        chat_request_status_counter.add(1, {"status_class": "domain_error"})
+        logger.info("AI route validation error: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid AI request. Check the prompt and context fields.",
+        ) from exc
+    except RateLimitError as exc:
+        chat_request_status_counter.add(1, {"status_class": "infra_error"})
+        logger.warning("OpenAI rate limit exceeded: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="AI provider quota exceeded. Please check your OpenAI plan and billing details.",
+        ) from exc
+    except RuntimeError as exc:
+        chat_request_status_counter.add(1, {"status_class": "infra_error"})
+        logger.exception("AI route runtime failure.")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI service temporarily unavailable. Please try again later.",
+        ) from exc
+    except Exception as exc:
+        chat_request_status_counter.add(1, {"status_class": "infra_error"})
+        logger.warning("Unexpected AI route failure: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal error occurred while processing the AI request.",
+        ) from exc
+
+    chat_request_status_counter.add(1, {"status_class": "ok"})
+    return AiResponseModel(message=answer)

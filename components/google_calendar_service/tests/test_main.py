@@ -8,8 +8,8 @@ from datetime import UTC, datetime
 import pytest
 from calendar_client_api.event import Attendee, Event, EventCreate, EventUpdate
 from fastapi.testclient import TestClient
+from google_calendar_service import deps
 from google_calendar_service.main import app
-from google_calendar_service.routes import event_routes
 
 HTTP_OK = 200
 DEFAULT_MAX_RESULTS = 10
@@ -20,9 +20,9 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def override_get_client_dependency() -> Iterator[None]:
     """Override the events router _get_client dependency with a fake client."""
-    app.dependency_overrides[event_routes._get_client] = fake_get_client
+    app.dependency_overrides[deps.get_calendar_client] = fake_get_client
     yield
-    app.dependency_overrides.pop(event_routes._get_client, None)
+    app.dependency_overrides.pop(deps.get_calendar_client, None)
 
 
 @dataclass(frozen=True)
@@ -81,7 +81,7 @@ class FakeEvent(Event):
 class FakeCalendarClient:
     """Fake calendar client used for service tests."""
 
-    def list_events(self, max_results: int = DEFAULT_MAX_RESULTS) -> Iterable[Event]:
+    def list_upcoming_events(self, max_results: int = DEFAULT_MAX_RESULTS) -> Iterable[Event]:
         assert max_results == DEFAULT_MAX_RESULTS
         return [
             FakeEvent(
@@ -98,7 +98,7 @@ class FakeCalendarClient:
             ),
         ]
 
-    def get_event(self, event_id: str) -> Event:
+    def get_event_by_id(self, event_id: str) -> Event:
         assert event_id == "test_123"
         return FakeEvent(
             FakeEventData(
@@ -113,7 +113,7 @@ class FakeCalendarClient:
             )
         )
 
-    def create_event(self, event_create: EventCreate) -> Event:
+    def create_event_from_dto(self, event_create: EventCreate) -> Event:
         assert event_create.title == "Java Exam"
         assert event_create.description == "Java Midterm"
         assert event_create.location == "2 MetroTech"
@@ -134,10 +134,10 @@ class FakeCalendarClient:
             )
         )
 
-    def update_event(self, event_id: str, event_update: EventUpdate) -> Event:
+    def update_event_from_patch(self, event_id: str, event_patch: EventUpdate) -> Event:
         assert event_id == "test_123"
-        assert event_update.title == "Updated Java Midterm"
-        assert event_update.location == "New 2 MetroTech Room"
+        assert event_patch.title == "Updated Java Midterm"
+        assert event_patch.location == "New 2 MetroTech Room"
 
         return FakeEvent(
             FakeEventData(
@@ -166,6 +166,11 @@ class TestHealthEndpoint:
 
         assert response.status_code == HTTP_OK
         assert response.json() == {"status": "ok"}
+
+
+class TestTelemetryEndpoint:
+    def test_opentelemetry_instrumentor_is_active(self) -> None:
+        assert getattr(app, "_is_instrumented_by_opentelemetry", False)
 
 
 class TestListEventsEndpoint:

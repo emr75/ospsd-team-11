@@ -11,19 +11,32 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Install Git for VCS-based dependencies in uv.lock
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy workspace metadata first for better layer caching
 COPY pyproject.toml uv.lock ./
+COPY components/ai_client_api/pyproject.toml components/ai_client_api/pyproject.toml
 COPY components/calendar_client_api/pyproject.toml components/calendar_client_api/pyproject.toml
 COPY components/google_calendar_client_impl/pyproject.toml components/google_calendar_client_impl/pyproject.toml
 COPY components/google_calendar_service/pyproject.toml components/google_calendar_service/pyproject.toml
+COPY components/google_calendar_service_api_client/pyproject.toml components/google_calendar_service_api_client/pyproject.toml
+COPY components/google_calendar_service_adapter/pyproject.toml components/google_calendar_service_adapter/pyproject.toml
+COPY components/openai_ai_client_impl/pyproject.toml components/openai_ai_client_impl/pyproject.toml
 
 # Pre-sync third-party runtime dependencies
 RUN uv sync --frozen --no-dev --no-editable --no-install-workspace --package google-calendar-service
 
 # Copy only the packages needed by google-calendar-service
+COPY components/ai_client_api components/ai_client_api
 COPY components/calendar_client_api components/calendar_client_api
 COPY components/google_calendar_client_impl components/google_calendar_client_impl
 COPY components/google_calendar_service components/google_calendar_service
+COPY components/google_calendar_service_api_client components/google_calendar_service_api_client
+COPY components/google_calendar_service_adapter components/google_calendar_service_adapter
+COPY components/openai_ai_client_impl components/openai_ai_client_impl
 
 # Install workspace packages into the existing environment
 RUN uv sync --frozen --no-dev --no-editable --package google-calendar-service

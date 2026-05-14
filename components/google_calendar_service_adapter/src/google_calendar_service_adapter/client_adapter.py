@@ -76,7 +76,7 @@ class ServiceCalendarClient(CalendarClient):
             follow_redirects=True,
         )
 
-    def create_event(self, event_create: EventCreate) -> ServiceCalendarEvent:
+    def create_event_from_dto(self, event_create: EventCreate) -> ServiceCalendarEvent:
         """Create a calendar event via the service."""
         attendees = [
             AttendeeRequest(email=a.email, name=a.name if a.name is not None else GEN_UNSET) for a in event_create.attendees
@@ -96,7 +96,7 @@ class ServiceCalendarClient(CalendarClient):
             raise _translate_http_error(err) from err
         return self._unwrap_event_envelope(response)
 
-    def get_event(self, event_id: str) -> ServiceCalendarEvent:
+    def get_event_by_id(self, event_id: str) -> ServiceCalendarEvent:
         """Get a single event by ID via the service."""
         try:
             response = get_event_events_event_id_get.sync(event_id, client=self._client)
@@ -104,7 +104,7 @@ class ServiceCalendarClient(CalendarClient):
             raise _translate_http_error(err, event_id=event_id) from err
         return self._unwrap_event_envelope(response)
 
-    def list_events(self, max_results: int = 10) -> Iterable[ServiceCalendarEvent]:
+    def list_upcoming_events(self, max_results: int = 10) -> Iterable[ServiceCalendarEvent]:
         """List calendar events via the service."""
         try:
             response = list_events_events_get.sync(client=self._client, max_results=max_results)
@@ -120,7 +120,7 @@ class ServiceCalendarClient(CalendarClient):
             raise _translate_http_error(err) from err
         return self._unwrap_events_envelope(response)
 
-    def update_event(self, event_id: str, event_patch: EventUpdate) -> ServiceCalendarEvent:
+    def update_event_from_patch(self, event_id: str, event_patch: EventUpdate) -> ServiceCalendarEvent:
         """Update a calendar event via the service."""
         if isinstance(event_patch.title, API_UNSET_TYPE):
             title: str | None | GenUnset = GEN_UNSET

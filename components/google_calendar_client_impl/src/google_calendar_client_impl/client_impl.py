@@ -3,23 +3,26 @@
 import logging
 import os
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import ClassVar
 
 import calendar_client_api
-from calendar_client_api import Attendee, CalendarClient, CredentialsToken, Event, EventCreate, EventUpdate
+from calendar_client_api import Attendee, CalendarClient, Event, EventCreate, EventUpdate
 from calendar_client_api.event import UNSET
 from google.auth.exceptions import GoogleAuthError, RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore[import-untyped] # no py.typed
-from googleapiclient.discovery import Resource, build  # type: ignore[import-untyped] # no py.typed
+from googleapiclient.discovery import Resource, build
+from ospsd_calendar_api import CalendarClient as SharedCalendarClient
+from ospsd_calendar_api import Event as SharedEvent
 
 from google_calendar_client_impl.event_impl import GoogleCalendarEvent
 
 
-class GoogleCalendarClient(CalendarClient):
+class GoogleCalendarClient(CalendarClient, SharedCalendarClient):
     """Concrete implementation of CalendarClient using Google Calendar."""
 
     TOKEN_PATH: ClassVar[str] = "token.json"  # noqa: S105
@@ -96,7 +99,7 @@ class GoogleCalendarClient(CalendarClient):
         else:
             return creds
 
-    def _auth_from_interactive(self, creds_path: str) -> Credentials:
+    def _auth_from_interactive(self, creds_path: str) -> Credentials:  # pragma: no cover — interactive browser flow
         if not Path(creds_path).exists():
             err_msg = f"'{creds_path}' not found. Cannot run interactive auth."
             raise FileNotFoundError(err_msg)
@@ -120,7 +123,7 @@ class GoogleCalendarClient(CalendarClient):
                 return None
         return creds
 
-    def create_event(self, event_create: EventCreate, calendar_id: str = "primary") -> Event:
+    def create_event_from_dto(self, event_create: EventCreate, calendar_id: str = "primary") -> Event:
         """Create a new calendar event and return its ID."""
         resolved_calendar_id = self._resolve_calendar_id(calendar_id)
         payload = _serialize_event_create(event_create)
@@ -132,14 +135,14 @@ class GoogleCalendarClient(CalendarClient):
         ).execute()
         return self._event_from_payload(created_payload, calendar_id=resolved_calendar_id)
 
-    def get_event(self, event_id: str, calendar_id: str = "primary") -> Event:
+    def get_event_by_id(self, event_id: str, calendar_id: str = "primary") -> Event:
         """Retrieve a calendar event by its ID."""
         resolved_calendar_id = self._resolve_calendar_id(calendar_id)
         events_resource = self.service.events()  # type: ignore[attr-defined] # Resource is dynamically built; .events() not in stubs
         event_payload = events_resource.get(calendarId=resolved_calendar_id, eventId=event_id).execute()
         return self._event_from_payload(event_payload, calendar_id=resolved_calendar_id)
 
-    def list_events(self, max_results: int = 10, calendar_id: str = "primary") -> Iterable[Event]:
+    def list_upcoming_events(self, max_results: int = 10, calendar_id: str = "primary") -> Iterable[Event]:
         """Return an iterable of calendar events."""
         max_result_limit = 2500
         if max_results <= 0:
@@ -176,7 +179,7 @@ class GoogleCalendarClient(CalendarClient):
         ).execute()
         return self._events_from_list_payload(events_payload, calendar_id=resolved_calendar_id)
 
-    def update_event(
+    def update_event_from_patch(
         self,
         event_id: str,
         event_patch: EventUpdate,
@@ -235,6 +238,69 @@ class GoogleCalendarClient(CalendarClient):
             except (TypeError, ValueError):
                 self.logger.warning("Skipping invalid event payload in list response.")
         return parsed_events
+
+    # --- SharedCalendarClient implementation ---
+    # These are thin adapters. They just call the methods above.
+    # delete_event is exactly the same as the local interface
+
+    def list_events(self, start: datetime, end: datetime) -> list[SharedEvent]:
+        """List the events between two dates."""
+        events = self.list_events_between(start=start, end=end)
+        return [_event_to_shared_event(event) for event in events]
+
+    def get_event(self, event_id: str) -> SharedEvent:
+        """Get an event by its ID."""
+        event = self.get_event_by_id(event_id)
+        return _event_to_shared_event(event)
+
+    def create_event(
+        self, title: str, start_time: datetime, end_time: datetime, description: str = "", location: str | None = None
+    ) -> SharedEvent:
+        """Create a calendar event."""
+        event = self.create_event_from_dto(
+            EventCreate(
+                title=title,
+                start_time=start_time,
+                end_time=end_time,
+                description=description,
+                location=location,
+                attendees=[],
+                attachments=[],
+            )
+        )
+        return _event_to_shared_event(event)
+
+    def update_event(  # noqa: PLR0913
+        self,
+        event_id: str,
+        *,
+        title: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        description: str | None = None,
+        location: str | None = None,
+    ) -> SharedEvent:
+        """Update a calendar event."""
+        patch = EventUpdate(
+            title=UNSET if title is None else title,
+            start_time=UNSET if start_time is None else start_time,
+            end_time=UNSET if end_time is None else end_time,
+            description=UNSET if description is None else description,
+            location=UNSET if location is None else location,
+        )
+        event = self.update_event_from_patch(event_id, patch)
+        return _event_to_shared_event(event)
+
+
+def _event_to_shared_event(event: Event) -> SharedEvent:
+    return SharedEvent(
+        id=event.id,
+        title=event.title,
+        start_time=event.start_time,
+        end_time=event.end_time,
+        description=event.description,
+        location=event.location,
+    )
 
 
 def _serialize_event_create(event_create: EventCreate) -> dict[str, object]:
@@ -318,8 +384,20 @@ def get_google_calendar_client() -> GoogleCalendarClient:
     return GoogleCalendarClient()
 
 
+@dataclass(frozen=True)
+class CredentialsToken:
+    """Structured representation of OAuth credentials for token-based auth."""
+
+    client_id: str
+    client_secret: str
+    token_uri: str
+    scopes: list[str]
+    access_token: str
+    refresh_token: str | None = None
+
+
 def get_calendar_client_with_credentials(creds_token: CredentialsToken) -> GoogleCalendarClient:
-    """Get a Google Calendar client using provided credentials token."""
+    """Get a Google Calendar client using the provided credentials token."""
     creds = Credentials(  # type: ignore[no-untyped-call] # google-auth Credentials.__init__() is untyped
         token=creds_token.access_token,
         refresh_token=creds_token.refresh_token,
@@ -336,4 +414,3 @@ def get_calendar_client_with_credentials(creds_token: CredentialsToken) -> Googl
 def register_google_calendar_client() -> None:
     """Register a Google Calendar client."""
     calendar_client_api.register_client(get_google_calendar_client)
-    calendar_client_api.register_client_with_credentials(get_calendar_client_with_credentials)

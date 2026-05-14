@@ -1,5 +1,6 @@
 """Public exports and dependency injections for the Google Calendar implementation package."""
 
+from google_calendar_client_impl.client_impl import CredentialsToken as CredentialsToken
 from google_calendar_client_impl.client_impl import GoogleCalendarClient as GoogleCalendarClient
 from google_calendar_client_impl.client_impl import (
     get_calendar_client_with_credentials as get_calendar_client_with_credentials,

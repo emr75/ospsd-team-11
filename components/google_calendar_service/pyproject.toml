@@ -7,16 +7,19 @@ requires-python = ">=3.13"
 dependencies = [
     "calendar-client-api",
     "google-calendar-client-impl",
+    "ai-client-api",
+    "openai-ai-client-impl",
+    "ospd-issue-tracker-api",
+    "issue-tracker-adapter",
     "fastapi>=0.135.1",
     "fastapi-sessions>=0.3.2",
     "httpx>=0.28.1",
     "uvicorn>=0.42.0",
     "python-dotenv>=1.0.0",
+    "opentelemetry-sdk>=1.23.0",
+    "opentelemetry-instrumentation-fastapi>=0.44b0",
+    "opentelemetry-exporter-otlp-proto-http>=1.23.0",
 ]
-
-[tool.uv.sources]
-calendar-client-api = { workspace = true }
-google-calendar-client-impl = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

@@ -1,0 +1,120 @@
+# IaC and Telemetry
+
+## Infrastructure as Code
+
+The service infrastructure is managed with Terraform in `infra/`.
+
+Terraform provisions the Render web service, configures Docker deployment from the repository, sets the service health check, and manages **non-secret** application environment variables. Secret env vars (API keys, OAuth secrets, tokens) are directly set in the Render so they never appear in the Terraform state file.
+
+Secrets to configure in Render:
+
+- `GOOGLE_CALENDAR_CLIENT_ID`
+- `GOOGLE_CALENDAR_CLIENT_SECRET`
+- `GOOGLE_CALENDAR_REFRESH_TOKEN`
+- `GOOGLE_CALENDAR_SESSION_SECRET`
+- `CALENDAR_COOKIE_VALUE`
+- `OPENAI_API_KEY`
+- `ISSUE_TRACKER_SERVICE_URL`
+- `ISSUE_TRACKER_SESSION_TOKEN`
+- `OTEL_EXPORTER_OTLP_HEADERS`
+
+Typical workflow:
+
+```bash
+cd infra
+terraform init
+terraform plan -var-file=terraform.tfvars
+terraform apply -var-file=terraform.tfvars
+# Then set the secret env vars listed above in the Render dashboard
+```
+
+Use `infra/terraform.tfvars.example` as the template for the real variable file. Do not commit real secrets.
+
+## Telemetry
+
+The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemetry.io/) SDK and exports **traces**, **metrics**, and **logs** directly to [Grafana Cloud](https://grafana.com/products/cloud/) via OTLP.
+
+### What is collected
+
+All metric and attribute names follow the [OpenTelemetry HTTP Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/http/http-metrics/).
+
+- **Traces** — one span per HTTP request, including route, method, status code, and latency. Provided automatically by `opentelemetry-instrumentation-fastapi`.
+- **Metrics**
+  - `http.server.request.duration` histogram (unit: seconds) with attributes `http.request.method`, `http.response.status_code`, `http.route`, and `url.scheme`. Provided automatically by `FastAPIInstrumentor`. Total request counts are derived from the histogram's implicit count.
+  - `chat.request.status_class` counter (unit: `{request}`) with attribute `status_class` ∈ {`ok`, `domain_error`, `infra_error`}. Incremented on every `/ai/` request to provide a first-class success/failure signal for dashboards and alerting.
+- **Logs** — Python `logging` output bridged into OTLP and correlated with the active trace.
+
+### Dashboard Queries
+
+An importable dashboard is committed at
+`observability/grafana/google-calendar-service-dashboard.json`.
+
+To set it up in Grafana Cloud:
+
+1. Open Grafana → Dashboards → New → Import.
+2. Upload `observability/grafana/google-calendar-service-dashboard.json`.
+3. Choose the Grafana Cloud Prometheus data source that receives this service's OTLP metrics.
+
+The dashboard includes:
+
+- HTTP success rate, failure rate, throughput, and overall p95 latency stat panels.
+- Request latency by route and method from `http_server_request_duration_seconds_bucket`.
+- HTTP success/failure rates with 4xx treated as domain/client failures and 5xx treated as infrastructure/server failures.
+- AI request outcomes from `chat_request_status_class_total`, split into `ok`, `domain_error`, and `infra_error`.
+- Per-route, method, and status-code request rate breakdown for demo evidence.
+
+Request latency by route:
+
+```promql
+rate(http_server_request_duration_seconds_sum[5m])
+/ rate(http_server_request_duration_seconds_count[5m])
+```
+
+Chat success rate (first-class counter):
+
+```promql
+100 * sum(rate(chat_request_status_class_total{status_class="ok"}[5m]))
+/ sum(rate(chat_request_status_class_total[5m]))
+```
+
+Chat failure rate by class (first-class counter):
+
+```promql
+sum by (status_class) (rate(chat_request_status_class_total{status_class=~"domain_error|infra_error"}[5m]))
+```
+
+HTTP-level success rate (query-derived from histogram):
+
+```promql
+100 * sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"2.."}[5m]))
+/ sum(rate(http_server_request_duration_seconds_count[5m]))
+```
+
+HTTP-level failure rate (query-derived from histogram):
+
+```promql
+100 * sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"[45].."}[5m]))
+/ sum(rate(http_server_request_duration_seconds_count[5m]))
+```
+
+### Architecture
+
+```
+FastAPI app  →  Grafana Cloud OTLP endpoint  (traces  → Tempo)
+(any environment)                             (metrics → Prometheus)
+                                              (logs    → Loki)
+```
+
+The app exports directly to Grafana Cloud — no collector sidecar required. If `OTEL_EXPORTER_OTLP_ENDPOINT` is absent the app starts normally with telemetry silently disabled.
+
+## Setup
+
+Add the following standard OTEL env vars to your `.env` (see `.env.example`):
+
+```
+OTEL_SERVICE_NAME=google-calendar-service
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-prod-<region>.grafana.net/otlp
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_RESOURCE_ATTRIBUTES=service.namespace=ospsd-team-11
+OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic%20<your-base64-token>
+```

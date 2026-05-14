@@ -6,7 +6,9 @@
 
 - **Concrete client implementation**: `GoogleCalendarClient`, which implements `calendar_client_api.client.CalendarClient`
 - **Factory function**: `get_google_calendar_client()`, used by the DI system
+- **Session-token factory**: `get_calendar_client_with_credentials()`, used by the FastAPI service after OAuth callback
 - **DI registration hook**: `register_google_calendar_client()`, which registers the factory with `calendar_client_api.registry`
+- **Shared API compatibility**: thin methods satisfying `ospsd-calendar-api`
 
 ## The Concrete Client
 
@@ -41,6 +43,16 @@ Optional calendar selection:
 ## Factory Function
 
 ::: google_calendar_client_impl.client_impl.get_google_calendar_client
+    options:
+      show_root_heading: true
+      show_source: true
+
+::: google_calendar_client_impl.client_impl.get_calendar_client_with_credentials
+    options:
+      show_root_heading: true
+      show_source: true
+
+::: google_calendar_client_impl.client_impl.CredentialsToken
     options:
       show_root_heading: true
       show_source: true

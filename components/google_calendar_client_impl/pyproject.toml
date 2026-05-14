@@ -1,19 +1,17 @@
 [project]
 name = "google-calendar-client-impl"
 version = "0.1.0"
-description = "Add your description here"
+description = "Implementation of the calendar client interface using Google Calendar API, supporting event lifecycle operations and integration within a modular, dependency-injected service architecture."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "calendar-client-api",
+    "ospsd-calendar-api",
     "python-dotenv>=1.0.0",
     "google-api-python-client>=2.177.0",
     "google-auth>=2.40.3",
     "google-auth-oauthlib>=1.2.2",
 ]
-
-[tool.uv.sources]
-calendar-client-api = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
