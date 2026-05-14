@@ -982,3 +982,215 @@ def test_ai_tool_call_schedule_work_session_cross_vertical() -> None:
     assert len(calendar.created_events) == 1
     assert issue.updated_issues[0]["status"] == Status.IN_PROGRESS
     assert "Done. Tool returned:" in result
+
+
+# ---------------------------------------------------------------------------
+# Multi-turn AI tool-call loop integration tests
+#
+# These tests verify that the AI agent can invoke multiple tools in sequence,
+# where later tool calls depend on earlier tool results.  This exercises the
+# full pipeline through multiple rounds:
+#   AI client  →  tool dispatch  →  service clients  →  AI client (again)
+# ---------------------------------------------------------------------------
+
+
+class MultiTurnScriptedAiClient(AiClient):
+    """AI client that replays a scripted sequence of tool calls.
+
+    Each entry in ``tool_calls`` is invoked in order through ``handle_tool``.
+    After all tool calls are exhausted, the client returns a final summary.
+    """
+
+    def __init__(self, tool_calls: list[tuple[str, dict[str, Any]]]) -> None:
+        """Store the scripted tool-call sequence to replay."""
+        self._tool_calls = tool_calls
+        self.tool_results: list[str] = []
+
+    def send_message(self, prompt: str, context: dict[str, Any] | None = None) -> str:
+        """Not used in tool-calling flow."""
+        return ""  # pragma: no cover
+
+    def run_chat_with_tools(self, **kwargs: Any) -> str:
+        """Invoke each tool in sequence, then return a summary."""
+        handle_tool = kwargs["handle_tool"]
+        for tool_name, tool_args in self._tool_calls:
+            result = handle_tool(tool_name, tool_args)
+            self.tool_results.append(result)
+        return f"Completed {len(self._tool_calls)} tool calls."
+
+
+def test_multi_turn_list_issues_then_create_event_from_issue() -> None:
+    """Multi-turn: AI lists issues, then creates a calendar event from one.
+
+    Verifies the full multi-round pipeline where the AI first discovers
+    available issues (list_issues), then uses the result to schedule a
+    meeting for a specific issue (create_event_from_issue).
+    """
+    scripted_ai = MultiTurnScriptedAiClient(
+        tool_calls=[
+            ("list_issues", {"board_id": "board-1"}),
+            (
+                "create_event_from_issue",
+                {
+                    "issue_id": "42",
+                    "start": "2026-06-15T14:00:00",
+                    "end": "2026-06-15T15:00:00",
+                },
+            ),
+        ]
+    )
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = agent.run_ai_turn(
+        prompt="Find my open issues and schedule a meeting for the login bug",
+        context=None,
+        ai_client=scripted_ai,
+        calendar_client=calendar,
+        issue_client=issue,
+    )
+
+    assert len(scripted_ai.tool_results) == 2
+
+    issues_result = json.loads(scripted_ai.tool_results[0])
+    assert isinstance(issues_result, list)
+    assert any(i["id"] == "42" for i in issues_result)
+
+    event_result = json.loads(scripted_ai.tool_results[1])
+    assert event_result["status"] == "created"
+    assert event_result["issue_id"] == "42"
+    assert len(calendar.created_events) == 1
+    assert "Completed 2 tool calls." in result
+
+
+def test_multi_turn_get_issue_then_schedule_work_session() -> None:
+    """Multi-turn: AI fetches issue details, then schedules a work session.
+
+    Verifies a realistic multi-step workflow where the AI inspects an issue
+    before finding a free calendar slot and scheduling time for it.
+    """
+    scripted_ai = MultiTurnScriptedAiClient(
+        tool_calls=[
+            ("get_issue", {"issue_id": "42"}),
+            (
+                "schedule_issue_work_session",
+                {
+                    "issue_id": "42",
+                    "window_start": "2026-06-15T09:00:00",
+                    "window_end": "2026-06-15T17:00:00",
+                    "duration_minutes": 90,
+                    "update_status": True,
+                },
+            ),
+        ]
+    )
+    calendar = FakeCalendarClient()
+    calendar.events_between = []
+    issue = FakeIssueClient()
+
+    result = agent.run_ai_turn(
+        prompt="Look up issue 42 and find time to work on it today",
+        context={"timezone": "America/New_York"},
+        ai_client=scripted_ai,
+        calendar_client=calendar,
+        issue_client=issue,
+    )
+
+    assert len(scripted_ai.tool_results) == 2
+
+    issue_detail = json.loads(scripted_ai.tool_results[0])
+    assert issue_detail["title"] == "Bug: login broken"
+
+    schedule_result = json.loads(scripted_ai.tool_results[1])
+    assert schedule_result["status"] == "scheduled"
+    assert schedule_result["event"]["start_time"] == "2026-06-15T09:00:00"
+    assert len(calendar.created_events) == 1
+    assert issue.updated_issues[0]["status"] == Status.IN_PROGRESS
+    assert "Completed 2 tool calls." in result
+
+
+def test_multi_turn_create_issue_then_schedule_from_it() -> None:
+    """Multi-turn: AI creates an issue, then schedules a work session for it.
+
+    Verifies the full cross-vertical round-trip: create on the issue tracker,
+    then schedule on the calendar, all through the AI tool-calling pipeline.
+    """
+    scripted_ai = MultiTurnScriptedAiClient(
+        tool_calls=[
+            (
+                "create_issue",
+                {
+                    "title": "Implement OAuth refresh",
+                    "board_id": "board-1",
+                    "description": "Add token refresh logic.",
+                    "status": "open",
+                },
+            ),
+            (
+                "create_event_from_issue",
+                {
+                    "issue_id": "created-issue",
+                    "start": "2026-06-20T10:00:00",
+                    "end": "2026-06-20T11:00:00",
+                },
+            ),
+        ]
+    )
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = agent.run_ai_turn(
+        prompt="Create an issue for OAuth refresh and schedule a review meeting",
+        context=None,
+        ai_client=scripted_ai,
+        calendar_client=calendar,
+        issue_client=issue,
+    )
+
+    assert len(scripted_ai.tool_results) == 2
+
+    created = json.loads(scripted_ai.tool_results[0])
+    assert created["id"] == "created-issue"
+    assert created["title"] == "Implement OAuth refresh"
+
+    event_result = json.loads(scripted_ai.tool_results[1])
+    assert event_result["status"] == "created"
+    assert event_result["issue_id"] == "created-issue"
+    assert len(calendar.created_events) == 1
+    assert len(issue.created_issues) == 1
+    assert "Completed 2 tool calls." in result
+
+
+def test_multi_turn_tool_error_does_not_break_subsequent_calls() -> None:
+    """Multi-turn: a tool error on one call does not prevent the next call.
+
+    Verifies that the make_tool_handler error-catching logic returns a JSON
+    error for a failed tool, and the AI can still invoke the next tool.
+    """
+    scripted_ai = MultiTurnScriptedAiClient(
+        tool_calls=[
+            ("get_issue", {"issue_id": "nonexistent"}),
+            ("list_events", {}),
+        ]
+    )
+    calendar = FakeCalendarClient()
+    issue = FakeIssueClient()
+
+    result = agent.run_ai_turn(
+        prompt="Check issue 999 and list my events",
+        context=None,
+        ai_client=scripted_ai,
+        calendar_client=calendar,
+        issue_client=issue,
+    )
+
+    assert len(scripted_ai.tool_results) == 2
+
+    error_result = json.loads(scripted_ai.tool_results[0])
+    assert "error" in error_result
+    assert error_result["tool"] == "get_issue"
+
+    events_result = json.loads(scripted_ai.tool_results[1])
+    assert isinstance(events_result, list)
+    assert events_result[0]["id"] == "event-1"
+    assert "Completed 2 tool calls." in result

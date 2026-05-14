@@ -72,6 +72,7 @@ ignore = [
     "S106",    # hardcoded-password-func-arg — test fixtures pass fake credentials as arguments
     "INP001",  # implicit-namespace-package — test directories intentionally omit __init__.py
     "PLC0415", # import-outside-top-level — tests use deferred imports for reload/isolation testing
+    "PLR2004", # magic-value-comparison — test assertions use literal expected values for clarity
 ]
 
 [tool.mypy]
