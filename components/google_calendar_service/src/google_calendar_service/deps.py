@@ -8,7 +8,7 @@ Functions:
     - get_calendar_client: Fetches a CalendarClient instance with tokens
       acquired from the current user session.
     - get_ai_client: Returns an AiClient instance configured using OpenAI.
-    - get_issue_client: Returns an issue-tracker Client backed by Team 3's
+    - get_issue_client: Returns an issue-tracker Client backed by Team 7's
       deployed service via their ServiceClientAdapter.
 
 """
@@ -25,7 +25,9 @@ from api.client import Client as IssueClient  # type: ignore[import-untyped]
 from calendar_client_api import CalendarClient
 from fastapi import Depends, HTTPException
 from google_calendar_client_impl import CredentialsToken, get_calendar_client_with_credentials
-from issue_tracker_client_adapter.adapter import ServiceClientAdapter
+
+# Team 7 adapter does not ship a py.typed marker.
+from issue_tracker_adapter.client import ServiceClientAdapter  # type: ignore[import-untyped]
 from starlette import status
 
 from google_calendar_service.session_store import SessionData, cookie, verifier
@@ -62,7 +64,7 @@ def get_ai_client() -> AiClient:  # pragma: no cover — requires OPENAI_API_KEY
 
 
 def get_issue_client() -> IssueClient:  # pragma: no cover — requires live service URL
-    """Get an issue-tracker Client backed by Team 3's deployed service."""
+    """Get an issue-tracker Client backed by Team 7's deployed service."""
     base_url = os.environ.get("ISSUE_TRACKER_SERVICE_URL", "")
-    session_id = os.environ.get("ISSUE_TRACKER_SESSION_ID")
-    return ServiceClientAdapter(base_url=base_url, session_id=session_id)
+    session_token = os.environ.get("ISSUE_TRACKER_SESSION_TOKEN", "")
+    return ServiceClientAdapter(base_url=base_url, session_token=session_token)

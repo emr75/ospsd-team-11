@@ -11,7 +11,7 @@
 #   CALENDAR_COOKIE_VALUE
 #   OPENAI_API_KEY
 #   ISSUE_TRACKER_SERVICE_URL
-#   ISSUE_TRACKER_SESSION_ID
+#   ISSUE_TRACKER_SESSION_TOKEN
 #   OTEL_EXPORTER_OTLP_HEADERS
 # ---------------------------------------------------------------------------
 locals {

@@ -29,7 +29,7 @@ The AI route is backed by dependency-injected calendar, AI, and issue-tracker cl
 | `httpx` | Outbound HTTP calls (OAuth token exchange) |
 | `openai-ai-client-impl` | OpenAI-backed AI client used for AI routes |
 | `ospd-issue-tracker-api` | Shared vertical ABC for issue tracker integration ([repo](https://github.com/tatyanacthomas/ospd_issue_tracker)) |
-| `issue-tracker-client-adapter` | Team 3's service adapter implementing the shared issue-tracker ABC ([repo](https://github.com/yawnka/ospsd-team-03), `hw-3` branch) |
+| `issue-tracker-adapter` | Team 7's service adapter implementing the shared issue-tracker ABC ([repo](https://github.com/somadisingh/ospsd-team7-issue-tracker), `hw3` branch) |
 | `opentelemetry-sdk` | OpenTelemetry SDK for traces, metrics, and logs |
 | `opentelemetry-instrumentation-fastapi` | Auto-instrumentation for FastAPI request spans |
 | `opentelemetry-exporter-otlp-proto-http` | OTLP/HTTP exporters for traces, metrics, and logs |
@@ -78,7 +78,7 @@ The AI route is backed by dependency-injected calendar, AI, and issue-tracker cl
   Validates and consumes OAuth handshake, exchanges authorization code for tokens, stores tokens in session.
 
 - `POST /auth/logout`  
-  Clears session token state (if present), deletes session cookie, returns:
+  Clears session token state (if present), deletes session token, returns:
   ```json
   {"status": "logged out"}
   ```
@@ -150,10 +150,10 @@ Common variables:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (optional)
 
-### Issue Tracker (Team 3 cross-vertical integration)
+### Issue Tracker (Team 7 cross-vertical integration)
 
-- `ISSUE_TRACKER_SERVICE_URL` — Base URL of Team 3's deployed issue tracker service (e.g. `https://ospsd-team-03.onrender.com`)
-- `ISSUE_TRACKER_SESSION_ID` (optional) — Session cookie value for authenticated requests
+- `ISSUE_TRACKER_SERVICE_URL` — Base URL of Team 7's deployed issue tracker service (e.g. `https://issue-tracker-service-688420327904.us-central1.run.app`)
+- `ISSUE_TRACKER_SESSION_TOKEN` — Session token from Team 7's OAuth callback, sent as `X-Session-Token` for authenticated issue-tracker requests
 
 ### Adapter/Service Client
 

@@ -45,7 +45,7 @@ Consumer -> POST /ai/
          -> google_calendar_service
          -> OpenAiClient
          -> service tool handlers
-         -> CalendarClient + Team 3 issue tracker client
+         -> CalendarClient + Team 7 issue tracker client
 ```
 
 In both calendar paths, the consumer-facing code is the same:
@@ -101,7 +101,7 @@ Current workspace members:
 - `components/google_calendar_service_adapter`
 - `components/openai_ai_client_impl`
 
-Generated code under `components/google_calendar_service_api_client` is excluded from ruff and mypy at the root because it is OpenAPI-generated. Team 3 packages do not ship `py.typed`, so import sites use narrowly scoped `# type: ignore[import-untyped]` comments instead of disabling strict type checking globally.
+Generated code under `components/google_calendar_service_api_client` is excluded from ruff and mypy at the root because it is OpenAPI-generated. Team 7 packages do not ship `py.typed`, so import sites use narrowly scoped `# type: ignore[import-untyped]` comments instead of disabling strict type checking globally.
 
 ---
 
@@ -246,7 +246,7 @@ The service injects three clients:
 
 - `AiClient` from `openai_ai_client_impl`
 - session-scoped `CalendarClient`
-- Team 3 issue-tracker client from `issue_tracker_client_adapter`
+- Team 7 issue-tracker client from `issue_tracker_adapter`
 
 Available AI tools:
 
@@ -288,8 +288,8 @@ Important runtime environment variables:
 | `GOOGLE_CALENDAR_SESSION_COOKIE_SECURE` | Whether session cookie requires HTTPS |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `OPENAI_MODEL` | Optional OpenAI model override |
-| `ISSUE_TRACKER_SERVICE_URL` | Team 3 issue-tracker service base URL |
-| `ISSUE_TRACKER_SESSION_ID` | Optional issue-tracker session cookie |
+| `ISSUE_TRACKER_SERVICE_URL` | Team 7 issue-tracker service base URL |
+| `ISSUE_TRACKER_SESSION_TOKEN` | Team 7 issue-tracker session token for authenticated requests |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Enables OpenTelemetry export when set |
 | `OTEL_EXPORTER_OTLP_HEADERS` | OTLP auth headers, for example Grafana Cloud auth |
 
@@ -461,7 +461,7 @@ Implement `AiClient` using the OpenAI Chat Completions API.
 | `calendar_client_api` | Python stdlib |
 | `ai_client_api` | Python stdlib |
 | `google_calendar_client_impl` | `calendar_client_api`, `ospsd-calendar-api`, Google auth/API packages, `python-dotenv` |
-| `google_calendar_service` | `calendar_client_api`, `google_calendar_client_impl`, `ai_client_api`, `openai_ai_client_impl`, Team 3 issue-tracker packages, FastAPI, `httpx`, OpenTelemetry |
+| `google_calendar_service` | `calendar_client_api`, `google_calendar_client_impl`, `ai_client_api`, `openai_ai_client_impl`, Team 7 issue-tracker packages, FastAPI, `httpx`, OpenTelemetry |
 | `google_calendar_service_api_client` | `httpx`, `attrs`, `python-dateutil` |
 | `google_calendar_service_adapter` | `calendar_client_api`, `google_calendar_service_client` |
 | `openai_ai_client_impl` | `ai_client_api`, `openai` |
@@ -557,29 +557,29 @@ Coverage has a project threshold of 85%.
 
 ### Choice of Vertical
 
-We integrate with the **issue-tracker vertical** (Team 3's Trello-backed service). Calendar and issue tracking are natural complements: users schedule meetings about issues, block focus time for ticket work, and track issue status alongside their calendar.
+We integrate with the **issue-tracker vertical** (Team 7's Trello-backed service). Calendar and issue tracking are natural complements: users schedule meetings about issues, block focus time for ticket work, and track issue status alongside their calendar.
 
 ### Dependency Wiring
 
-Team 3 publishes two packages:
+Team 7 publishes three integration packages, and the shared vertical API remains the common `ospd-issue-tracker-api` package:
 
 | Package | Purpose |
 |---------|---------|
 | `ospd-issue-tracker-api` | Shared ABC (`Client`) with domain types (`Issue`, `Board`, `Status`) |
-| `issue-tracker-client-adapter` | `ServiceClientAdapter` that calls Team 3's deployed HTTP service |
+| `issue-tracker-adapter` | `ServiceClientAdapter` that calls Team 7's deployed HTTP service |
 
-Both are declared as Git sources in root `pyproject.toml`:
+They are declared as Git sources in root `pyproject.toml`:
 
 ```toml
-ospd-issue-tracker-api = { git = "...", branch = "main" }
-issue-tracker-client-adapter = { git = "...", branch = "hw-3", subdirectory = "components/issue_tracker_client_adapter" }
+ospd-issue-tracker-api = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git", rev = "5fde7fe514b7082ae28340c27a21fd7d22c42481" }
+issue-tracker-adapter = { git = "https://github.com/somadisingh/ospsd-team7-issue-tracker.git", branch = "hw3", subdirectory = "components/issue_tracker_adapter" }
 ```
 
-The adapter is injected via FastAPI's `Depends()` in `deps.py`. The issue-tracker client is constructed from `ISSUE_TRACKER_SERVICE_URL` and an optional `ISSUE_TRACKER_SESSION_ID` environment variable.
+The adapter is injected via FastAPI's `Depends()` in `deps.py`. The issue-tracker client is constructed from `ISSUE_TRACKER_SERVICE_URL` and `ISSUE_TRACKER_SESSION_TOKEN`, which Team 7's service expects as the `X-Session-Token` request header.
 
 ### Type Checking
 
-Team 3's packages do not ship a `py.typed` marker, so mypy treats them as untyped. Each import site uses a narrowly scoped `# type: ignore[import-untyped]` with an inline comment explaining the reason, rather than a blanket module-level exclusion.
+Team 7's packages do not ship a `py.typed` marker, so mypy treats them as untyped. Each import site uses a narrowly scoped `# type: ignore[import-untyped]` with an inline comment explaining the reason, rather than a blanket module-level exclusion.
 
 ---
 

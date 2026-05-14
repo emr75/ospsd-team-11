@@ -503,7 +503,7 @@ dependencies = [
     { name = "fastapi-sessions" },
     { name = "google-calendar-client-impl" },
     { name = "httpx" },
-    { name = "issue-tracker-client-adapter" },
+    { name = "issue-tracker-adapter" },
     { name = "openai-ai-client-impl" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-instrumentation-fastapi" },
@@ -521,12 +521,12 @@ requires-dist = [
     { name = "fastapi-sessions", specifier = ">=0.3.2" },
     { name = "google-calendar-client-impl", editable = "components/google_calendar_client_impl" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "issue-tracker-client-adapter", git = "https://github.com/yawnka/ospsd-team-03.git?subdirectory=components%2Fissue_tracker_client_adapter&branch=hw-3" },
+    { name = "issue-tracker-adapter", git = "https://github.com/somadisingh/ospsd-team7-issue-tracker.git?subdirectory=components%2Fissue_tracker_adapter&branch=hw3" },
     { name = "openai-ai-client-impl", editable = "components/openai_ai_client_impl" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.23.0" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.44b0" },
     { name = "opentelemetry-sdk", specifier = ">=1.23.0" },
-    { name = "ospd-issue-tracker-api", git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git?branch=main" },
+    { name = "ospd-issue-tracker-api", git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git?rev=5fde7fe514b7082ae28340c27a21fd7d22c42481" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "uvicorn", specifier = ">=0.42.0" },
 ]
@@ -664,24 +664,26 @@ wheels = [
 ]
 
 [[package]]
-name = "issue-tracker-client-adapter"
+name = "issue-tracker-adapter"
 version = "0.1.0"
-source = { git = "https://github.com/yawnka/ospsd-team-03.git?subdirectory=components%2Fissue_tracker_client_adapter&branch=hw-3#a7c382de973f69468d7690fda26b96f42e4cc70a" }
+source = { git = "https://github.com/somadisingh/ospsd-team7-issue-tracker.git?subdirectory=components%2Fissue_tracker_adapter&branch=hw3#5a6bef7ef65d51c0e78823fc992bfcd8564901f6" }
 dependencies = [
     { name = "issue-tracker-client-api" },
-    { name = "issue-tracker-client-service-client" },
-    { name = "ospd-issue-tracker-api" },
+    { name = "issue-tracker-service-client" },
 ]
 
 [[package]]
 name = "issue-tracker-client-api"
 version = "0.1.0"
-source = { git = "https://github.com/yawnka/ospsd-team-03.git?subdirectory=components%2Fissue_tracker_client_api&branch=hw-3#a7c382de973f69468d7690fda26b96f42e4cc70a" }
+source = { git = "https://github.com/somadisingh/ospsd-team7-issue-tracker.git?subdirectory=components%2Fissue_tracker_client_api&branch=hw3#5a6bef7ef65d51c0e78823fc992bfcd8564901f6" }
+dependencies = [
+    { name = "ospd-issue-tracker-api" },
+]
 
 [[package]]
-name = "issue-tracker-client-service-client"
+name = "issue-tracker-service-client"
 version = "0.1.0"
-source = { git = "https://github.com/yawnka/ospsd-team-03.git?subdirectory=components%2Fissue_tracker_client_service_client&branch=hw-3#a7c382de973f69468d7690fda26b96f42e4cc70a" }
+source = { git = "https://github.com/somadisingh/ospsd-team7-issue-tracker.git?subdirectory=components%2Fissue_tracker_service_api_client&branch=hw3#5a6bef7ef65d51c0e78823fc992bfcd8564901f6" }
 dependencies = [
     { name = "attrs" },
     { name = "httpx" },
@@ -1214,7 +1216,7 @@ wheels = [
 [[package]]
 name = "ospd-issue-tracker-api"
 version = "0.1.0"
-source = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git?branch=main#63abe1c8607fce7e92a1a68475580fd380e3a1ed" }
+source = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git?rev=5fde7fe514b7082ae28340c27a21fd7d22c42481#5fde7fe514b7082ae28340c27a21fd7d22c42481" }
 
 [[package]]
 name = "ospsd-calendar-api"

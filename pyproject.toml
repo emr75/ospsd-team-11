@@ -41,10 +41,8 @@ google-calendar-service-adapter = { workspace = true }
 google-calendar-service-client = { workspace = true }
 openai-ai-client-impl = { workspace = true }
 ospsd-calendar-api = { git = "https://github.com/DeMoliT1on/ospsd-calendar-api", branch = "main" }
-ospd-issue-tracker-api = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git", branch = "main" }
-issue-tracker-client-adapter = { git = "https://github.com/yawnka/ospsd-team-03.git", branch = "hw-3", subdirectory = "components/issue_tracker_client_adapter" }
-issue-tracker-client-api = { git = "https://github.com/yawnka/ospsd-team-03.git", branch = "hw-3", subdirectory = "components/issue_tracker_client_api" }
-
+ospd-issue-tracker-api = { git = "https://github.com/tatyanacthomas/ospd_issue_tracker.git", rev = "5fde7fe514b7082ae28340c27a21fd7d22c42481" }
+issue-tracker-adapter = { git = "https://github.com/somadisingh/ospsd-team7-issue-tracker.git", branch = "hw3", subdirectory = "components/issue_tracker_adapter" }
 
 [tool.ruff]
 line-length = 130
@@ -91,7 +89,7 @@ exclude = [
     "components/google_calendar_service_api_client", # Exclude generated client code from type checking
 ]
 
-# NOTE: The issue-tracker packages (api.*, issue_tracker_client_adapter.*, etc.)
+# NOTE: The issue-tracker packages (api.*, issue_tracker_adapter.*, etc.)
 # do not ship a py.typed marker. Rather than a blanket module-level override here,
 # we use narrowly scoped `# type: ignore[import-untyped]` at each import site with
 # an inline comment explaining the reason. This keeps mypy strict everywhere else.

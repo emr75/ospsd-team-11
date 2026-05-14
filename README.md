@@ -25,7 +25,7 @@ This project follows an interface/implementation architecture:
   - `openai_ai_client_impl` (OpenAI-backed AI implementation)
 - **FastAPI Service**: `google_calendar_service` (FastAPI app)
 - **Generated API Client**: `google_calendar_service_api_client`
-- **Cross-vertical integration**: Team 3 issue-tracker service adapter used by the AI workflow
+- **Cross-vertical integration**: Team 7 issue-tracker service adapter used by the AI workflow
 - **Telemetry**: OpenTelemetry traces, metrics, and logs exported to Grafana Cloud via OTLP
 
 ---
@@ -166,7 +166,7 @@ The `POST /ai/` endpoint accepts natural-language prompts and delegates to an AI
 
 ### Cross-Vertical Integration
 
-The AI workflow integrates with **Team 3's issue-tracker service** (Trello-backed) through their shared `ospd-issue-tracker-api` interface. The dependency is declared in `pyproject.toml` as a Git source, and the issue-tracker client is injected via FastAPI's dependency system.
+The AI workflow integrates with **Team 7's issue-tracker service** (Trello-backed) through the shared `ospd-issue-tracker-api` interface. The dependency is declared in `pyproject.toml` as a Git source, and the issue-tracker client is injected via FastAPI's dependency system.
 
 Available cross-service tools:
 
@@ -257,10 +257,10 @@ No OAuth flow is required. Authentication is handled via API key.
 
 ### Issue Tracker Integration
 
-The AI workflow depends on Team 3's issue-tracker adapter through the shared issue-tracker API. Set:
+The AI workflow depends on Team 7's issue-tracker adapter through the shared issue-tracker API. Set:
 
 - `ISSUE_TRACKER_SERVICE_URL`
-- `ISSUE_TRACKER_SESSION_ID` (optional, when the issue tracker requires a session cookie)
+- `ISSUE_TRACKER_SESSION_TOKEN` (session token from Team 7's OAuth callback, required for authenticated issue-tracker tools)
 
 ---
 
