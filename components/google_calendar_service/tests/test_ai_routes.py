@@ -7,8 +7,8 @@ within the AI orchestration layer and is not tested here.
 
 # ruff: noqa: D101, D102
 from collections.abc import Generator
+from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -17,6 +17,7 @@ from google_calendar_service.main import app
 
 HTTP_OK = 200
 HTTP_BAD_REQUEST = 400
+HTTP_TOO_MANY_REQUESTS = 429
 HTTP_BAD_GATEWAY = 502
 HTTP_INTERNAL_SERVER_ERROR = 500
 client = TestClient(app, raise_server_exceptions=False)
@@ -40,6 +41,18 @@ class FakeAiClientInfraError:
     def run_chat_with_tools(self, **kwargs: Any) -> str:
         msg = "provider down"
         raise RuntimeError(msg)
+
+
+class FakeAiClientRateLimitError:
+    def run_chat_with_tools(self, **kwargs: Any) -> str:
+        import httpx
+        from openai import RateLimitError
+
+        raise RateLimitError(
+            message="quota exceeded",
+            response=httpx.Response(status_code=429, request=httpx.Request("POST", "https://api.openai.com/v1/chat/completions")),
+            body={"error": {"message": "quota exceeded", "type": "insufficient_quota"}},
+        )
 
 
 class FakeAiClientUnexpectedError:
@@ -77,38 +90,57 @@ class TestAiRoutes:
 class TestChatRequestStatusCounter:
     """Verify that the chat.request.status_class counter is incremented correctly."""
 
-    @patch("google_calendar_service.routes.ai_routes.chat_request_status_counter")
-    def test_ok_increments_counter(self, mock_counter: MagicMock) -> None:
+    @staticmethod
+    def _install_capturing_counter(monkeypatch: pytest.MonkeyPatch) -> list[tuple[int, dict[str, str]]]:
+        recorded: list[tuple[int, dict[str, str]]] = []
+        monkeypatch.setattr(
+            "google_calendar_service.routes.ai_routes.chat_request_status_counter",
+            SimpleNamespace(add=lambda value, attributes: recorded.append((value, attributes))),
+        )
+        return recorded
+
+    def test_ok_increments_counter(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _override_deps(FakeAiClient)
+        recorded = self._install_capturing_counter(monkeypatch)
 
         response = client.post("/ai/", json={"prompt": "hello"})
 
         assert response.status_code == HTTP_OK
-        mock_counter.add.assert_called_once_with(1, {"status_class": "ok"})
+        assert recorded == [(1, {"status_class": "ok"})]
 
-    @patch("google_calendar_service.routes.ai_routes.chat_request_status_counter")
-    def test_domain_error_increments_counter(self, mock_counter: MagicMock) -> None:
+    def test_domain_error_increments_counter(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _override_deps(FakeAiClientDomainError)
+        recorded = self._install_capturing_counter(monkeypatch)
 
         response = client.post("/ai/", json={"prompt": "bad"})
 
         assert response.status_code == HTTP_BAD_REQUEST
-        mock_counter.add.assert_called_once_with(1, {"status_class": "domain_error"})
+        assert recorded == [(1, {"status_class": "domain_error"})]
 
-    @patch("google_calendar_service.routes.ai_routes.chat_request_status_counter")
-    def test_runtime_error_increments_counter(self, mock_counter: MagicMock) -> None:
+    def test_runtime_error_increments_counter(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _override_deps(FakeAiClientInfraError)
+        recorded = self._install_capturing_counter(monkeypatch)
 
         response = client.post("/ai/", json={"prompt": "fail"})
 
         assert response.status_code == HTTP_BAD_GATEWAY
-        mock_counter.add.assert_called_once_with(1, {"status_class": "infra_error"})
+        assert recorded == [(1, {"status_class": "infra_error"})]
 
-    @patch("google_calendar_service.routes.ai_routes.chat_request_status_counter")
-    def test_unexpected_error_increments_counter(self, mock_counter: MagicMock) -> None:
+    def test_rate_limit_error_increments_counter(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _override_deps(FakeAiClientRateLimitError)
+        recorded = self._install_capturing_counter(monkeypatch)
+
+        response = client.post("/ai/", json={"prompt": "too many"})
+
+        assert response.status_code == HTTP_TOO_MANY_REQUESTS
+        assert response.json()["detail"] == "AI provider quota exceeded. Please check your OpenAI plan and billing details."
+        assert recorded == [(1, {"status_class": "infra_error"})]
+
+    def test_unexpected_error_increments_counter(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _override_deps(FakeAiClientUnexpectedError)
+        recorded = self._install_capturing_counter(monkeypatch)
 
         response = client.post("/ai/", json={"prompt": "boom"})
 
         assert response.status_code == HTTP_INTERNAL_SERVER_ERROR
-        mock_counter.add.assert_called_once_with(1, {"status_class": "infra_error"})
+        assert recorded == [(1, {"status_class": "infra_error"})]

@@ -8,7 +8,7 @@ Functions:
     - get_calendar_client: Fetches a CalendarClient instance with tokens
       acquired from the current user session.
     - get_ai_client: Returns an AiClient instance configured using OpenAI.
-    - get_issue_client: Returns an issue-tracker Client backed by Team 3's
+    - get_issue_client: Returns an issue-tracker Client backed by Team 7's
       deployed service via their ServiceClientAdapter.
 
 """
@@ -17,22 +17,24 @@ import os
 from typing import Annotated
 from uuid import UUID
 
-from ai_client_api import AiClient
+import openai_ai_client_impl  # noqa: F401  # imported for its registration side effect
+from ai_client_api import AiClient, get_client
 
 # The issue-tracker package does not ship a py.typed marker.
 from api.client import Client as IssueClient  # type: ignore[import-untyped]
 from calendar_client_api import CalendarClient
 from fastapi import Depends, HTTPException
 from google_calendar_client_impl import CredentialsToken, get_calendar_client_with_credentials
-from issue_tracker_client_adapter.adapter import ServiceClientAdapter
-from openai_ai_client_impl import get_openai_client
+
+# Team 7 adapter does not ship a py.typed marker.
+from issue_tracker_adapter.client import ServiceClientAdapter  # type: ignore[import-untyped]
 from starlette import status
 
 from google_calendar_service.session_store import SessionData, cookie, verifier
 from google_calendar_service.settings import settings
 
 
-def get_calendar_client(
+def get_calendar_client(  # pragma: no cover — requires live OAuth session
     _session_id: Annotated[UUID, Depends(cookie)],
     session_data: Annotated[SessionData, Depends(verifier)],
 ) -> CalendarClient:
@@ -53,16 +55,22 @@ def get_calendar_client(
         refresh_token=tokens.refresh_token,
     )
 
-    return get_calendar_client_with_credentials(creds_token=creds_token)
+    try:
+        return get_calendar_client_with_credentials(creds_token=creds_token)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="OAuth credentials are invalid or expired. Please re-authenticate.",
+        ) from exc
 
 
-def get_ai_client() -> AiClient:
-    """Get an AiClient instance configured using OpenAI."""
-    return get_openai_client()
+def get_ai_client() -> AiClient:  # pragma: no cover — requires OPENAI_API_KEY
+    """Get an AiClient instance via the ai_client_api registry."""
+    return get_client()
 
 
-def get_issue_client() -> IssueClient:
-    """Get an issue-tracker Client backed by Team 3's deployed service."""
+def get_issue_client() -> IssueClient:  # pragma: no cover — requires live service URL
+    """Get an issue-tracker Client backed by Team 7's deployed service."""
     base_url = os.environ.get("ISSUE_TRACKER_SERVICE_URL", "")
-    session_id = os.environ.get("ISSUE_TRACKER_SESSION_ID")
-    return ServiceClientAdapter(base_url=base_url, session_id=session_id)
+    session_token = os.environ.get("ISSUE_TRACKER_SESSION_TOKEN", "")
+    return ServiceClientAdapter(base_url=base_url, session_token=session_token)

@@ -10,7 +10,7 @@ dependencies = [
     "ai-client-api",
     "openai-ai-client-impl",
     "ospd-issue-tracker-api",
-    "issue-tracker-client-adapter",
+    "issue-tracker-adapter",
     "fastapi>=0.135.1",
     "fastapi-sessions>=0.3.2",
     "httpx>=0.28.1",

@@ -25,7 +25,7 @@ This project follows an interface/implementation architecture:
   - `openai_ai_client_impl` (OpenAI-backed AI implementation)
 - **FastAPI Service**: `google_calendar_service` (FastAPI app)
 - **Generated API Client**: `google_calendar_service_api_client`
-- **Cross-vertical integration**: Team 3 issue-tracker service adapter used by the AI workflow
+- **Cross-vertical integration**: Team 7 issue-tracker service adapter used by the AI workflow
 - **Telemetry**: OpenTelemetry traces, metrics, and logs exported to Grafana Cloud via OTLP
 
 ---
@@ -150,11 +150,11 @@ The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemet
 - Success rate from requests with `http.response.status_code` in 2xx.
 - Failure rate from requests with `http.response.status_code` in 4xx/5xx.
 
-Telemetry is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. See `docs/telemetry.md` for setup instructions and PromQL queries.
+Telemetry is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. See `docs/telemetry.md` for setup instructions, the importable Grafana dashboard JSON, and PromQL queries.
 
 **Grafana URL**: [https://grafanafreebee942.grafana.net](https://grafanafreebee942.grafana.net)
 
-Dashboard panels and PromQL queries are documented in `docs/telemetry.md`. The dashboard should show request latency, success rate, and failure rate from the deployed service during the demo.
+Dashboard panels and PromQL queries are documented in `docs/telemetry.md`. Import `observability/grafana/google-calendar-service-dashboard.json` into Grafana Cloud for the demo dashboard showing request latency, success rate, and failure rate from the deployed service.
 
 ---
 
@@ -166,7 +166,7 @@ The `POST /ai/` endpoint accepts natural-language prompts and delegates to an AI
 
 ### Cross-Vertical Integration
 
-The AI workflow integrates with **Team 3's issue-tracker service** (Trello-backed) through their shared `ospd-issue-tracker-api` interface. The dependency is declared in `pyproject.toml` as a Git source, and the issue-tracker client is injected via FastAPI's dependency system.
+The AI workflow integrates with **Team 7's issue-tracker service** (Trello-backed) through the shared `ospd-issue-tracker-api` interface. The dependency is declared in `pyproject.toml` as a Git source, and the issue-tracker client is injected via FastAPI's dependency system.
 
 Available cross-service tools:
 
@@ -177,7 +177,7 @@ Available cross-service tools:
 
 ## Infrastructure as Code (IaC)
 
-Terraform configuration lives in `infra/` and provisions the Render web service, health check, and **non-secret** environment variables. Secret env vars are set manually in the Render dashboard so they never appear in the Terraform state file.
+Terraform configuration lives in `infra/` and provisions the Render web service, health check, and **non-secret** environment variables. Secret env vars are set directly in Render so they never appear in the Terraform state file.
 
 ### Bootstrap
 
@@ -257,10 +257,10 @@ No OAuth flow is required. Authentication is handled via API key.
 
 ### Issue Tracker Integration
 
-The AI workflow depends on Team 3's issue-tracker adapter through the shared issue-tracker API. Set:
+The AI workflow depends on Team 7's issue-tracker adapter through the shared issue-tracker API. Set:
 
 - `ISSUE_TRACKER_SERVICE_URL`
-- `ISSUE_TRACKER_SESSION_ID` (optional, when the issue tracker requires a session cookie)
+- `ISSUE_TRACKER_SESSION_TOKEN` (session token from Team 7's OAuth callback, required for authenticated issue-tracker tools)
 
 ---
 

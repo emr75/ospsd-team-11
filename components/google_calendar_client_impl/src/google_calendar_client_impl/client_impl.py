@@ -99,7 +99,7 @@ class GoogleCalendarClient(CalendarClient, SharedCalendarClient):
         else:
             return creds
 
-    def _auth_from_interactive(self, creds_path: str) -> Credentials:
+    def _auth_from_interactive(self, creds_path: str) -> Credentials:  # pragma: no cover — interactive browser flow
         if not Path(creds_path).exists():
             err_msg = f"'{creds_path}' not found. Cannot run interactive auth."
             raise FileNotFoundError(err_msg)

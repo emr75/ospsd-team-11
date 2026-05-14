@@ -9,6 +9,7 @@ from ai_client_api import AiClient
 from api.client import Client as IssueClient  # type: ignore[import-untyped]
 from calendar_client_api import CalendarClient
 from fastapi import APIRouter, Depends, HTTPException, status
+from openai import RateLimitError
 
 from google_calendar_service.deps import get_ai_client, get_calendar_client, get_issue_client
 from google_calendar_service.integrations.agent import run_ai_turn
@@ -43,16 +44,23 @@ def handle_ai(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid AI request. Check the prompt and context fields.",
         ) from exc
+    except RateLimitError as exc:
+        chat_request_status_counter.add(1, {"status_class": "infra_error"})
+        logger.warning("OpenAI rate limit exceeded: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="AI provider quota exceeded. Please check your OpenAI plan and billing details.",
+        ) from exc
     except RuntimeError as exc:
         chat_request_status_counter.add(1, {"status_class": "infra_error"})
-        logger.warning("AI route runtime failure: %s", exc)
+        logger.exception("AI route runtime failure.")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI service temporarily unavailable. Please try again later.",
         ) from exc
     except Exception as exc:
         chat_request_status_counter.add(1, {"status_class": "infra_error"})
-        logger.exception("Unexpected AI route failure")
+        logger.warning("Unexpected AI route failure: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal error occurred while processing the AI request.",
