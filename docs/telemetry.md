@@ -44,7 +44,24 @@ All metric and attribute names follow the [OpenTelemetry HTTP Semantic Conventio
   - `chat.request.status_class` counter (unit: `{request}`) with attribute `status_class` ∈ {`ok`, `domain_error`, `infra_error`}. Incremented on every `/ai/` request to provide a first-class success/failure signal for dashboards and alerting.
 - **Logs** — Python `logging` output bridged into OTLP and correlated with the active trace.
 
-### Dashboard Queries (Grafana Cloud → Explore → Prometheus)
+### Dashboard Queries
+
+An importable dashboard is committed at
+`observability/grafana/google-calendar-service-dashboard.json`.
+
+To set it up in Grafana Cloud:
+
+1. Open Grafana → Dashboards → New → Import.
+2. Upload `observability/grafana/google-calendar-service-dashboard.json`.
+3. Choose the Grafana Cloud Prometheus data source that receives this service's OTLP metrics.
+
+The dashboard includes:
+
+- HTTP success rate, failure rate, throughput, and overall p95 latency stat panels.
+- Request latency by route and method from `http_server_request_duration_seconds_bucket`.
+- HTTP success/failure rates with 4xx treated as domain/client failures and 5xx treated as infrastructure/server failures.
+- AI request outcomes from `chat_request_status_class_total`, split into `ok`, `domain_error`, and `infra_error`.
+- Per-route, method, and status-code request rate breakdown for demo evidence.
 
 Request latency by route:
 

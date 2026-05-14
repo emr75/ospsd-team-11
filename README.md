@@ -150,11 +150,11 @@ The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemet
 - Success rate from requests with `http.response.status_code` in 2xx.
 - Failure rate from requests with `http.response.status_code` in 4xx/5xx.
 
-Telemetry is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. See `docs/telemetry.md` for setup instructions and PromQL queries.
+Telemetry is disabled if `OTEL_EXPORTER_OTLP_ENDPOINT` is not set. See `docs/telemetry.md` for setup instructions, the importable Grafana dashboard JSON, and PromQL queries.
 
 **Grafana URL**: [https://grafanafreebee942.grafana.net](https://grafanafreebee942.grafana.net)
 
-Dashboard panels and PromQL queries are documented in `docs/telemetry.md`. The dashboard should show request latency, success rate, and failure rate from the deployed service during the demo.
+Dashboard panels and PromQL queries are documented in `docs/telemetry.md`. Import `observability/grafana/google-calendar-service-dashboard.json` into Grafana Cloud for the demo dashboard showing request latency, success rate, and failure rate from the deployed service.
 
 ---
 
