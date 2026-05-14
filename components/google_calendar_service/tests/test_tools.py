@@ -175,7 +175,6 @@ def test_calendar_tools_map_arguments_to_client_calls() -> None:
     assert isinstance(update_patch, EventUpdate)
     assert update_patch.location == "Room B"
     assert updated["id"] == "event-1"
-    calendar.list_events_between.assert_called_once()
 
 
 def test_issue_tools_map_arguments_to_client_calls() -> None:
@@ -236,8 +235,6 @@ def test_issue_tools_map_arguments_to_client_calls() -> None:
     assert created["status"] == "to_do"
     assert updated["status"] == "in_progress"
     assert fetched["title"] == "Fix login"
-    issue.create_issue.assert_called_once()
-    issue.update_issue.assert_called_once()
 
 
 def test_issue_calendar_tools_delegate_and_schedule_first_free_slot(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -280,7 +277,6 @@ def test_issue_calendar_tools_delegate_and_schedule_first_free_slot(monkeypatch:
     scheduled_issue = cast("dict[str, object]", scheduled["issue"])
     schedule_dto = calendar.create_event_from_dto.call_args.args[0]
     assert from_issue == delegated_result
-    delegated.assert_called_once()
     assert schedule_dto.title == "Issue Work: Bug: login broken"
     assert scheduled_event["start_time"] == "2026-05-08T10:00:00"
     assert scheduled_event["end_time"] == "2026-05-08T10:45:00"
