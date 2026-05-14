@@ -39,10 +39,11 @@ locals {
     DEFAULT_CALENDAR_ID       = var.default_calendar_id
 
     # OpenTelemetry
-    OTEL_SERVICE_NAME           = var.otel_service_name
-    OTEL_EXPORTER_OTLP_ENDPOINT = var.otel_exporter_otlp_endpoint
-    OTEL_EXPORTER_OTLP_PROTOCOL = var.otel_exporter_otlp_protocol
-    OTEL_RESOURCE_ATTRIBUTES    = var.otel_resource_attributes
+    OTEL_SERVICE_NAME              = var.otel_service_name
+    OTEL_EXPORTER_OTLP_ENDPOINT    = var.otel_exporter_otlp_endpoint
+    OTEL_EXPORTER_OTLP_PROTOCOL    = var.otel_exporter_otlp_protocol
+    OTEL_RESOURCE_ATTRIBUTES       = var.otel_resource_attributes
+    OTEL_SEMCONV_STABILITY_OPT_IN  = var.otel_semconv_stability_opt_in
   }
 }
 

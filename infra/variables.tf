@@ -182,6 +182,12 @@ variable "otel_resource_attributes" {
   default     = "service.namespace=ospsd-team-11"
 }
 
+variable "otel_semconv_stability_opt_in" {
+  description = "OTel semantic convention opt-in (set to 'http' for stable HTTP metric names)"
+  type        = string
+  default     = "http"
+}
+
 
 # Note: OTEL_EXPORTER_OTLP_HEADERS contains auth tokens and is set
 # directly set in Render.
