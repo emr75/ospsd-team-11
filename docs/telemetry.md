@@ -4,7 +4,19 @@
 
 The service infrastructure is managed with Terraform in `infra/`.
 
-Terraform provisions the Render web service, configures Docker deployment from the repository, sets the service health check, and manages application environment variables. The deployed service exposes the FastAPI application from the repository `Dockerfile`.
+Terraform provisions the Render web service, configures Docker deployment from the repository, sets the service health check, and manages **non-secret** application environment variables. Secret env vars (API keys, OAuth secrets, tokens) are set manually in the Render dashboard so they never appear in the Terraform state file.
+
+Secrets to configure in Render:
+
+- `GOOGLE_CALENDAR_CLIENT_ID`
+- `GOOGLE_CALENDAR_CLIENT_SECRET`
+- `GOOGLE_CALENDAR_REFRESH_TOKEN`
+- `GOOGLE_CALENDAR_SESSION_SECRET`
+- `CALENDAR_COOKIE_VALUE`
+- `OPENAI_API_KEY`
+- `ISSUE_TRACKER_SERVICE_URL`
+- `ISSUE_TRACKER_SESSION_ID`
+- `OTEL_EXPORTER_OTLP_HEADERS`
 
 Typical workflow:
 
@@ -13,6 +25,7 @@ cd infra
 terraform init
 terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars
+# Then set the secret env vars listed above in the Render dashboard
 ```
 
 Use `infra/terraform.tfvars.example` as the template for the real variable file. Do not commit real secrets.
@@ -26,7 +39,9 @@ The FastAPI service is instrumented with the [OpenTelemetry](https://opentelemet
 All metric and attribute names follow the [OpenTelemetry HTTP Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/http/http-metrics/).
 
 - **Traces** — one span per HTTP request, including route, method, status code, and latency. Provided automatically by `opentelemetry-instrumentation-fastapi`.
-- **Metrics** — `http.server.request.duration` histogram (unit: seconds) with attributes `http.request.method`, `http.response.status_code`, `http.route`, and `url.scheme`. Provided automatically by `FastAPIInstrumentor`. Total request counts are derived from the histogram's implicit count.
+- **Metrics**
+  - `http.server.request.duration` histogram (unit: seconds) with attributes `http.request.method`, `http.response.status_code`, `http.route`, and `url.scheme`. Provided automatically by `FastAPIInstrumentor`. Total request counts are derived from the histogram's implicit count.
+  - `chat.request.status_class` counter (unit: `{request}`) with attribute `status_class` ∈ {`ok`, `domain_error`, `infra_error`}. Incremented on every `/ai/` request to provide a first-class success/failure signal for dashboards and alerting.
 - **Logs** — Python `logging` output bridged into OTLP and correlated with the active trace.
 
 ### Dashboard Queries (Grafana Cloud → Explore → Prometheus)
@@ -38,14 +53,27 @@ rate(http_server_request_duration_seconds_sum[5m])
 / rate(http_server_request_duration_seconds_count[5m])
 ```
 
-Success rate:
+Chat success rate (first-class counter):
+
+```promql
+100 * sum(rate(chat_request_status_class_total{status_class="ok"}[5m]))
+/ sum(rate(chat_request_status_class_total[5m]))
+```
+
+Chat failure rate by class (first-class counter):
+
+```promql
+sum by (status_class) (rate(chat_request_status_class_total{status_class=~"domain_error|infra_error"}[5m]))
+```
+
+HTTP-level success rate (query-derived from histogram):
 
 ```promql
 100 * sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"2.."}[5m]))
 / sum(rate(http_server_request_duration_seconds_count[5m]))
 ```
 
-Failure rate:
+HTTP-level failure rate (query-derived from histogram):
 
 ```promql
 100 * sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"[45].."}[5m]))

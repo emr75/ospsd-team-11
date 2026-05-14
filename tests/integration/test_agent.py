@@ -1,4 +1,8 @@
-"""Tests for AI orchestration logic in agent.py."""
+"""Integration tests for the AI orchestration and tool-dispatch pipeline.
+
+These tests wire together fakes for AiClient, CalendarClient, and IssueClient
+to verify the cross-component tool-calling flow end-to-end.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +23,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from api.issue import Issue
+
+pytestmark = pytest.mark.integration
 
 
 @dataclass

@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from google_calendar_service.deps import get_ai_client, get_calendar_client, get_issue_client
 from google_calendar_service.integrations.agent import run_ai_turn
 from google_calendar_service.models import AiRequest, AiResponseModel
+from google_calendar_service.otel import chat_request_status_counter
 
 logger = logging.getLogger(__name__)
 
@@ -36,22 +37,26 @@ def handle_ai(
             issue_client=issue_client,
         )
     except ValueError as exc:
+        chat_request_status_counter.add(1, {"status_class": "domain_error"})
         logger.info("AI route validation error: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid AI request. Check the prompt and context fields.",
         ) from exc
     except RuntimeError as exc:
+        chat_request_status_counter.add(1, {"status_class": "infra_error"})
         logger.warning("AI route runtime failure: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AI service temporarily unavailable. Please try again later.",
         ) from exc
     except Exception as exc:
+        chat_request_status_counter.add(1, {"status_class": "infra_error"})
         logger.exception("Unexpected AI route failure")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal error occurred while processing the AI request.",
         ) from exc
 
+    chat_request_status_counter.add(1, {"status_class": "ok"})
     return AiResponseModel(message=answer)

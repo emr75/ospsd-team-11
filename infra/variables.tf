@@ -62,30 +62,14 @@ variable "health_check_path" {
   default     = "/health"
 }
 
-# ===== App env vars =====
-
-variable "google_calendar_client_id" {
-  description = "Google OAuth client ID for the Calendar service"
-  type        = string
-  sensitive   = true
-}
-
-variable "google_calendar_client_secret" {
-  description = "Google OAuth client secret paired with google_calendar_client_id"
-  type        = string
-  sensitive   = true
-}
+# ===== App env vars (non-secret only) =====
+# Secret env vars are set manually in the Render dashboard to avoid
+# leaking sensitive values into the Terraform state file.
 
 variable "google_calendar_token_uri" {
   description = "Google OAuth token endpoint used to exchange/refresh tokens"
   type        = string
   default     = "https://oauth2.googleapis.com/token"
-}
-
-variable "google_calendar_refresh_token" {
-  description = "Long-lived Google OAuth refresh token used for offline access"
-  type        = string
-  sensitive   = true
 }
 
 variable "google_calendar_redirect_uri" {
@@ -147,12 +131,6 @@ variable "google_calendar_session_identifier" {
   default     = "google_calendar_service_verifier"
 }
 
-variable "google_calendar_session_secret" {
-  description = "Secret used to sign/verify session cookies"
-  type        = string
-  sensitive   = true
-}
-
 variable "google_calendar_session_cookie_secure" {
   description = "If 'true', the session cookie is marked Secure (HTTPS-only). Should be 'true' in production."
   type        = string
@@ -165,12 +143,6 @@ variable "calendar_cookie_id" {
   default     = "google_calendar_session_id"
 }
 
-variable "calendar_cookie_value" {
-  description = "Cookie value used by the service adapter for authenticated calls to the deployed service"
-  type        = string
-  sensitive   = true
-}
-
 variable "calendar_service_base_url" {
   description = "Public base URL of the deployed FastAPI service (used by adapter clients)"
   type        = string
@@ -180,33 +152,6 @@ variable "default_calendar_id" {
   description = "Default Google calendar ID the service operates on when none is specified"
   type        = string
   default     = "primary"
-}
-
-# ===== AI / OpenAI =====
-
-variable "openai_api_key" {
-  description = "API key for OpenAI (used by openai_ai_client_impl)"
-  type        = string
-  sensitive   = true
-}
-
-# ===== Trello (issue tracker integration) =====
-
-variable "trello_api_key" {
-  description = "Trello API key used by the issue-tracker integration"
-  type        = string
-  sensitive   = true
-}
-
-variable "trello_api_token" {
-  description = "Trello API token used by the issue-tracker integration"
-  type        = string
-  sensitive   = true
-}
-
-variable "trello_board_id" {
-  description = "Trello board ID used by the issue-tracker integration"
-  type        = string
 }
 
 # ===== OpenTelemetry =====
@@ -237,9 +182,6 @@ variable "otel_resource_attributes" {
   default     = "service.namespace=ospsd-team-11"
 }
 
-variable "otel_exporter_otlp_headers" {
-  description = "OTLP exporter headers (e.g. Authorization=Basic <base64>). Sensitive when carrying auth tokens."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
+
+# Note: OTEL_EXPORTER_OTLP_HEADERS contains auth tokens and is set
+# manually in the Render dashboard.
