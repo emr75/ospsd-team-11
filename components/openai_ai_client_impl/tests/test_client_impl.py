@@ -192,7 +192,10 @@ def test_run_chat_with_tools_handles_malformed_json_arguments() -> None:
     client = OpenAiClient(client=cast("Any", _fake_openai_client(FakeCompletions())))
 
     client.run_chat_with_tools(
-        system_prompt="s", user_message="u", tools=[], handle_tool=handle,
+        system_prompt="s",
+        user_message="u",
+        tools=[],
+        handle_tool=handle,
     )
 
     assert received_args == [{}]
@@ -227,7 +230,10 @@ def test_run_chat_with_tools_handles_non_dict_json_arguments() -> None:
     client = OpenAiClient(client=cast("Any", _fake_openai_client(FakeCompletions())))
 
     client.run_chat_with_tools(
-        system_prompt="s", user_message="u", tools=[], handle_tool=handle,
+        system_prompt="s",
+        user_message="u",
+        tools=[],
+        handle_tool=handle,
     )
 
     assert received_args == [{}]
@@ -266,7 +272,10 @@ def test_run_chat_with_tools_catches_handle_tool_exception() -> None:
     client = OpenAiClient(client=cast("Any", _fake_openai_client(FakeCompletions())))
 
     result = client.run_chat_with_tools(
-        system_prompt="s", user_message="u", tools=[], handle_tool=handle,
+        system_prompt="s",
+        user_message="u",
+        tools=[],
+        handle_tool=handle,
     )
 
     assert result == "Handled error"
