@@ -17,7 +17,8 @@ import os
 from typing import Annotated
 from uuid import UUID
 
-from ai_client_api import AiClient
+import openai_ai_client_impl  # noqa: F401  # imported for its registration side effect
+from ai_client_api import AiClient, get_client
 
 # The issue-tracker package does not ship a py.typed marker.
 from api.client import Client as IssueClient  # type: ignore[import-untyped]
@@ -25,7 +26,6 @@ from calendar_client_api import CalendarClient
 from fastapi import Depends, HTTPException
 from google_calendar_client_impl import CredentialsToken, get_calendar_client_with_credentials
 from issue_tracker_client_adapter.adapter import ServiceClientAdapter
-from openai_ai_client_impl import get_openai_client
 from starlette import status
 
 from google_calendar_service.session_store import SessionData, cookie, verifier
@@ -57,8 +57,8 @@ def get_calendar_client(  # pragma: no cover — requires live OAuth session
 
 
 def get_ai_client() -> AiClient:  # pragma: no cover — requires OPENAI_API_KEY
-    """Get an AiClient instance configured using OpenAI."""
-    return get_openai_client()
+    """Get an AiClient instance via the ai_client_api registry."""
+    return get_client()
 
 
 def get_issue_client() -> IssueClient:  # pragma: no cover — requires live service URL
