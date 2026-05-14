@@ -4,7 +4,7 @@
 
 The service infrastructure is managed with Terraform in `infra/`.
 
-Terraform provisions the Render web service, configures Docker deployment from the repository, sets the service health check, and manages **non-secret** application environment variables. Secret env vars (API keys, OAuth secrets, tokens) are set manually in the Render dashboard so they never appear in the Terraform state file.
+Terraform provisions the Render web service, configures Docker deployment from the repository, sets the service health check, and manages **non-secret** application environment variables. Secret env vars (API keys, OAuth secrets, tokens) are directly set in the Render so they never appear in the Terraform state file.
 
 Secrets to configure in Render:
 

@@ -177,7 +177,7 @@ Available cross-service tools:
 
 ## Infrastructure as Code (IaC)
 
-Terraform configuration lives in `infra/` and provisions the Render web service, health check, and **non-secret** environment variables. Secret env vars are set manually in the Render dashboard so they never appear in the Terraform state file.
+Terraform configuration lives in `infra/` and provisions the Render web service, health check, and **non-secret** environment variables. Secret env vars are set directly in Render so they never appear in the Terraform state file.
 
 ### Bootstrap
 

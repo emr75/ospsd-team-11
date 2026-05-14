@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # Non-secret env vars are safe to live in Terraform state.
-# Secret env vars (API keys, OAuth secrets, tokens) are set manually in the
-# Render dashboard so they never appear in the state file.
+# Secret env vars (API keys, OAuth secrets, tokens) are set directly in
+# Render so they never appear in the state file.
 #
 # Secrets to directly configure in Render:
 #   GOOGLE_CALENDAR_CLIENT_ID

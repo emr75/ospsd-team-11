@@ -63,7 +63,7 @@ variable "health_check_path" {
 }
 
 # ===== App env vars (non-secret only) =====
-# Secret env vars are set manually in the Render dashboard to avoid
+# Secret env vars are set directly in Render to avoid
 # leaking sensitive values into the Terraform state file.
 
 variable "google_calendar_token_uri" {
@@ -184,4 +184,4 @@ variable "otel_resource_attributes" {
 
 
 # Note: OTEL_EXPORTER_OTLP_HEADERS contains auth tokens and is set
-# manually in the Render dashboard.
+# directly set in Render.
