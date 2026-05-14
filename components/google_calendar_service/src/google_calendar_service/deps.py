@@ -55,7 +55,13 @@ def get_calendar_client(  # pragma: no cover — requires live OAuth session
         refresh_token=tokens.refresh_token,
     )
 
-    return get_calendar_client_with_credentials(creds_token=creds_token)
+    try:
+        return get_calendar_client_with_credentials(creds_token=creds_token)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="OAuth credentials are invalid or expired. Please re-authenticate.",
+        ) from exc
 
 
 def get_ai_client() -> AiClient:  # pragma: no cover — requires OPENAI_API_KEY

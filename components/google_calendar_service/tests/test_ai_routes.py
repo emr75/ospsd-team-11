@@ -17,6 +17,7 @@ from google_calendar_service.main import app
 
 HTTP_OK = 200
 HTTP_BAD_REQUEST = 400
+HTTP_TOO_MANY_REQUESTS = 429
 HTTP_BAD_GATEWAY = 502
 HTTP_INTERNAL_SERVER_ERROR = 500
 client = TestClient(app, raise_server_exceptions=False)
@@ -40,6 +41,18 @@ class FakeAiClientInfraError:
     def run_chat_with_tools(self, **kwargs: Any) -> str:
         msg = "provider down"
         raise RuntimeError(msg)
+
+
+class FakeAiClientRateLimitError:
+    def run_chat_with_tools(self, **kwargs: Any) -> str:
+        import httpx
+        from openai import RateLimitError
+
+        raise RateLimitError(
+            message="quota exceeded",
+            response=httpx.Response(status_code=429, request=httpx.Request("POST", "https://api.openai.com/v1/chat/completions")),
+            body={"error": {"message": "quota exceeded", "type": "insufficient_quota"}},
+        )
 
 
 class FakeAiClientUnexpectedError:
@@ -111,6 +124,16 @@ class TestChatRequestStatusCounter:
         response = client.post("/ai/", json={"prompt": "fail"})
 
         assert response.status_code == HTTP_BAD_GATEWAY
+        assert recorded == [(1, {"status_class": "infra_error"})]
+
+    def test_rate_limit_error_increments_counter(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _override_deps(FakeAiClientRateLimitError)
+        recorded = self._install_capturing_counter(monkeypatch)
+
+        response = client.post("/ai/", json={"prompt": "too many"})
+
+        assert response.status_code == HTTP_TOO_MANY_REQUESTS
+        assert response.json()["detail"] == "AI provider quota exceeded. Please check your OpenAI plan and billing details."
         assert recorded == [(1, {"status_class": "infra_error"})]
 
     def test_unexpected_error_increments_counter(self, monkeypatch: pytest.MonkeyPatch) -> None:
