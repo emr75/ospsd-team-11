@@ -134,7 +134,7 @@ def _validate_token_endpoint(token_url: str, allowed_hosts: tuple[str, ...]) -> 
         raise ValueError(msg)
 
 
-def get_settings() -> ServiceSettings:
+def get_settings() -> ServiceSettings:  # pragma: no cover — env-var bootstrap
     """Load service settings from environment variables."""
     load_env()
     oauth = OAuthSettings(

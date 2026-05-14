@@ -32,7 +32,7 @@ from google_calendar_service.session_store import SessionData, cookie, verifier
 from google_calendar_service.settings import settings
 
 
-def get_calendar_client(
+def get_calendar_client(  # pragma: no cover — requires live OAuth session
     _session_id: Annotated[UUID, Depends(cookie)],
     session_data: Annotated[SessionData, Depends(verifier)],
 ) -> CalendarClient:
@@ -56,12 +56,12 @@ def get_calendar_client(
     return get_calendar_client_with_credentials(creds_token=creds_token)
 
 
-def get_ai_client() -> AiClient:
+def get_ai_client() -> AiClient:  # pragma: no cover — requires OPENAI_API_KEY
     """Get an AiClient instance configured using OpenAI."""
     return get_openai_client()
 
 
-def get_issue_client() -> IssueClient:
+def get_issue_client() -> IssueClient:  # pragma: no cover — requires live service URL
     """Get an issue-tracker Client backed by Team 3's deployed service."""
     base_url = os.environ.get("ISSUE_TRACKER_SERVICE_URL", "")
     session_id = os.environ.get("ISSUE_TRACKER_SESSION_ID")
